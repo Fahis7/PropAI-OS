@@ -11,43 +11,48 @@ from .models import Tenant, Lease
 from .serializers import TenantSerializer, LeaseSerializer
 from finance.models import Cheque
 from properties.serializers import UnitSerializer 
-
-# 👇 IMPORTANT: Add this import to fetch maintenance data
 from maintenance.models import MaintenanceTicket
 
 User = get_user_model()
 
 class TenantViewSet(viewsets.ModelViewSet):
-    queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        try:
-            tenant = serializer.save()
-            user = None
-            if not User.objects.filter(username=tenant.email).exists():
-                user = User.objects.create_user(
-                    username=tenant.email,
-                    email=tenant.email,
-                    password='tenant123'
-                )
-                print(f"✅ User account created for {tenant.email}")
-            else:
-                user = User.objects.get(username=tenant.email)
-            
-            if user:
-                tenant.user = user
-                tenant.save()
-        except Exception as e:
-            print(f"🔥 Error in perform_create: {str(e)}")
-            raise e
+    # 🔧 FIX #6: Removed duplicate user creation from perform_create.
+    # User creation is now ONLY handled in TenantSerializer.create()
+
+    def get_queryset(self):
+        """🔧 FIX: Add org filtering for SaaS security"""
+        user = self.request.user
+        if user.is_superuser:
+            return Tenant.objects.all().order_by('-created_at')
+        
+        if hasattr(user, 'organization') and user.organization:
+            return Tenant.objects.filter(
+                leases__unit__property__organization=user.organization
+            ).distinct().order_by('-created_at')
+        
+        return Tenant.objects.none()
+
 
 class LeaseViewSet(viewsets.ModelViewSet):
-    queryset = Lease.objects.all()
     serializer_class = LeaseSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_queryset(self):
+        """🔧 FIX: Add org filtering for SaaS security"""
+        user = self.request.user
+        if user.is_superuser:
+            return Lease.objects.all().order_by('-start_date')
+        
+        if hasattr(user, 'organization') and user.organization:
+            return Lease.objects.filter(
+                unit__property__organization=user.organization
+            ).order_by('-start_date')
+        
+        return Lease.objects.none()
+
     def perform_create(self, serializer):
         lease = serializer.save()
         unit = lease.unit
@@ -60,12 +65,16 @@ class LeaseViewSet(viewsets.ModelViewSet):
         num_cheques = frequency_map.get(lease.payment_frequency, 1)
         amount_per_cheque = lease.rent_amount / (num_cheques if num_cheques > 0 else 1)
         months_interval = 12 // num_cheques
+
+        # 🔧 FIX: Include organization from the unit's property
+        org = lease.unit.property.organization if lease.unit and lease.unit.property else None
         
         for i in range(num_cheques):
             cheque_date = lease.start_date + relativedelta(months=i*months_interval)
             Cheque.objects.create(
                 lease=lease,
                 tenant=lease.tenant,
+                organization=org,
                 cheque_number=f"AUTO-{lease.id}-{i+1}",
                 bank_name="Pending Bank", 
                 cheque_date=cheque_date,
@@ -73,22 +82,23 @@ class LeaseViewSet(viewsets.ModelViewSet):
                 status='PENDING'
             )
 
+
 class MyTenantProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
             user = request.user
-            # 1. Get Tenant by matching logged-in user email
             try:
-                tenant = Tenant.objects.get(email=user.email)
+                tenant = Tenant.objects.get(user=user)
             except Tenant.DoesNotExist:
-                return Response({"error": "Tenant profile not found"}, status=404)
+                try:
+                    tenant = Tenant.objects.get(email=user.email)
+                except Tenant.DoesNotExist:
+                    return Response({"error": "Tenant profile not found"}, status=404)
 
-            # 2. Get Lease
             active_lease = tenant.leases.filter(is_active=True).first()
 
-            # Initialize base data structure
             data = {
                 "name": tenant.name,
                 "email": tenant.email,
@@ -96,7 +106,7 @@ class MyTenantProfileView(APIView):
                 "unit": None,
                 "lease": None,
                 "next_payment": {"amount": 0, "date": "No Pending Payments"},
-                "maintenance_tickets": [] # 👈 Required for the AI Tracker list
+                "maintenance_tickets": []
             }
 
             if active_lease:
@@ -104,7 +114,7 @@ class MyTenantProfileView(APIView):
                 property_name = unit_info.property.name if unit_info.property else "Main Property"
                 
                 data["unit"] = {
-                    "id": unit_info.id, # 👈 Needed so the "Report Issue" form knows which unit
+                    "id": unit_info.id,
                     "number": unit_info.unit_number,
                     "property": property_name
                 }
@@ -114,25 +124,24 @@ class MyTenantProfileView(APIView):
                     "rent": active_lease.rent_amount
                 }
                 
-                # Fetch Payments
-                cheques = getattr(active_lease, 'payments', None) or getattr(active_lease, 'cheque_set', None)
-                if cheques:
-                    next_cheque = cheques.filter(status='PENDING').order_by('cheque_date').first()
-                    if next_cheque:
-                        data["next_payment"] = {
-                            "amount": next_cheque.amount,
-                            "date": next_cheque.cheque_date
-                        }
+                # 🔧 FIX #3: Use correct related name 'cheques'
+                next_cheque = active_lease.cheques.filter(
+                    status='PENDING'
+                ).order_by('cheque_date').first()
+                
+                if next_cheque:
+                    data["next_payment"] = {
+                        "amount": next_cheque.amount,
+                        "date": next_cheque.cheque_date
+                    }
 
-            # 3. 👇 Fetch Maintenance Requests for this Tenant
-            # We fetch the 5 most recent requests to show on the dashboard
             tickets = MaintenanceTicket.objects.filter(tenant=tenant).order_by('-created_at')[:5]
             data["maintenance_tickets"] = [
                 {
                     "id": t.id,
                     "title": t.title or "General Maintenance",
                     "priority": t.priority,
-                    "ai_category": t.ai_category,
+                    "category": t.title,  # 🔧 FIX #2: Removed ai_category
                     "status": t.status,
                     "date": t.created_at.strftime("%Y-%m-%d")
                 } for t in tickets

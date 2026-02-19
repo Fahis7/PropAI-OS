@@ -1,17 +1,18 @@
 class OrganizationQuerySetMixin:
     """
     Magic SaaS Filter: Only show data belonging to the User's Organization.
+    🔧 FIX #12: Now safely handles users without an organization.
     """
     def get_queryset(self):
-        # 1. Get the base data (e.g., All Properties)
         queryset = super().get_queryset()
+        user = self.request.user
         
-        # 2. Get the user's organization
-        user_org = self.request.user.organization
-        
-        # 3. If Super Admin, show everything (Optional)
-        if self.request.user.is_superuser:
+        # Super Admin sees everything
+        if user.is_superuser:
             return queryset
+        
+        # 🔧 FIX: Check if user has organization before filtering
+        if not hasattr(user, 'organization') or not user.organization:
+            return queryset.none()
             
-        # 4. FILTER: Only show items linked to this Org
-        return queryset.filter(organization=user_org)
+        return queryset.filter(organization=user.organization)

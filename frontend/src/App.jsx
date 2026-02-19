@@ -17,8 +17,8 @@ import Units from "./components/admin/Units";
 
 // Tenant Components
 import TenantDashboard from "./components/tenant/TenantDashboard";
-import NewRequestForm from "./pages/tenant/NewRequestForm"; // 👈 ADDED
-import MaintenanceList from "./pages/tenant/MaintenanceList"; // 👈 ADDED
+import NewRequestForm from "./components/tenant/NewRequestForm";       // 🔧 FIX #1: Corrected path
+import MaintenanceList from "./components/tenant/MaintenanceList";     // 🔧 FIX #1: Corrected path
 
 // --- THE SECURITY GUARD ---
 function ProtectedRoute({ children, allowedRoles }) {

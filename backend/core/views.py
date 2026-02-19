@@ -8,6 +8,7 @@ from django.db.models import Sum
 from properties.models import Property, Unit
 from tenants.models import Tenant
 from finance.models import Cheque
+from maintenance.models import MaintenanceTicket
 from .serializers import MyTokenObtainPairSerializer
 
 # 1. Custom Login View
@@ -19,36 +20,58 @@ class MyTokenObtainPairView(TokenObtainPairView):
 @permission_classes([IsAuthenticated])
 def dashboard_stats(request):
     """
-    Returns real-time analytics for the Admin Dashboard.
-    Matches the keys expected by AdminDashboard.jsx
+    🔧 FIX #4: Now filters by organization for SaaS security.
     """
+    user = request.user
     
+    # --- Determine scope ---
+    if user.is_superuser:
+        properties = Property.objects.all()
+        units = Unit.objects.all()
+        cheques = Cheque.objects.all()
+        tenants = Tenant.objects.all()
+        tickets = MaintenanceTicket.objects.all()
+    elif hasattr(user, 'organization') and user.organization:
+        org = user.organization
+        properties = Property.objects.filter(organization=org)
+        units = Unit.objects.filter(property__organization=org)
+        cheques = Cheque.objects.filter(organization=org)
+        tenants = Tenant.objects.filter(leases__unit__property__organization=org).distinct()
+        tickets = MaintenanceTicket.objects.filter(organization=org)
+    else:
+        return Response({
+            'total_properties': 0, 'total_units': 0, 'occupied_units': 0,
+            'vacant_units': 0, 'occupancy_rate': 0, 'active_tenants': 0,
+            'pending_cheques': 0, 'total_pending_amount': 0, 'total_revenue': 0,
+            'bounced_cheques': 0, 'bounced_amount': 0,
+            'open_tickets': 0, 'emergency_tickets': 0,
+        })
+
     # --- Property Stats ---
-    total_properties = Property.objects.count()
-    total_units = Unit.objects.count()
-    occupied_units = Unit.objects.filter(status='OCCUPIED').count()
-    vacant_units = Unit.objects.filter(status='VACANT').count()
+    total_properties = properties.count()
+    total_units = units.count()
+    occupied_units = units.filter(status='OCCUPIED').count()
+    vacant_units = units.filter(status='VACANT').count()
     
-    # Calculate Occupancy % safely
     occupancy_rate = 0
     if total_units > 0:
         occupancy_rate = round((occupied_units / total_units) * 100, 1)
 
     # --- Finance Stats ---
-    
-    # 1. Pending (Future Revenue)
-    pending_cheques_count = Cheque.objects.filter(status='PENDING').count()
-    pending_data = Cheque.objects.filter(status='PENDING').aggregate(Sum('amount'))
+    pending_cheques_count = cheques.filter(status='PENDING').count()
+    pending_data = cheques.filter(status='PENDING').aggregate(Sum('amount'))
     total_pending_amount = pending_data['amount__sum'] or 0
 
-    # 2. Revenue (Cleared Funds)
-    revenue_data = Cheque.objects.filter(status='CLEARED').aggregate(Sum('amount'))
+    revenue_data = cheques.filter(status='CLEARED').aggregate(Sum('amount'))
     total_revenue = revenue_data['amount__sum'] or 0
 
-    # 3. Bounced (Critical Alerts) 🚨 👇 NEW ADDITION
-    bounced_data = Cheque.objects.filter(status='BOUNCED').aggregate(Sum('amount'))
-    bounced_count = Cheque.objects.filter(status='BOUNCED').count()
+    bounced_data = cheques.filter(status='BOUNCED').aggregate(Sum('amount'))
+    bounced_count = cheques.filter(status='BOUNCED').count()
     bounced_amount = bounced_data['amount__sum'] or 0
+
+    # --- Maintenance Stats ---
+    open_tickets = tickets.filter(status='OPEN').count()
+    emergency_tickets = tickets.filter(priority='EMERGENCY', status__in=['OPEN', 'IN_PROGRESS']).count()
 
     return Response({
         'total_properties': total_properties,
@@ -56,13 +79,15 @@ def dashboard_stats(request):
         'occupied_units': occupied_units,
         'vacant_units': vacant_units,
         'occupancy_rate': occupancy_rate,
-        'active_tenants': Tenant.objects.count(),
+        'active_tenants': tenants.count(),
         
         'pending_cheques': pending_cheques_count,
         'total_pending_amount': total_pending_amount,
         'total_revenue': total_revenue,
         
-        # 👇 Send these to the frontend
         'bounced_cheques': bounced_count,
-        'bounced_amount': bounced_amount
+        'bounced_amount': bounced_amount,
+
+        'open_tickets': open_tickets,
+        'emergency_tickets': emergency_tickets,
     })

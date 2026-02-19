@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model # 👈 CHANGED: Use this helper
+from django.contrib.auth import get_user_model
 from .models import Tenant, Lease
 from properties.serializers import UnitSerializer
 
-# Get the correct User model dynamically
 User = get_user_model()
 
 class LeaseSerializer(serializers.ModelSerializer):
@@ -28,16 +27,23 @@ class TenantSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
+        """
+        🔧 FIX #6: Single place for User creation.
+        🔧 FIX #10: Sets role to TENANT so JWT routing works correctly.
+        """
         email = validated_data.get('email')
         name = validated_data.get('name')
 
         # 1. Create (or Fetch) the User Login
-        if User.objects.filter(email=email).exists(): # Check by email, safer for custom models
+        if User.objects.filter(email=email).exists():
             user = User.objects.get(email=email)
         else:
-            # We assume your custom user model still uses 'username' or 'email' as identifier
-            # Adjust 'username=email' if your custom model DOES NOT have a username field
-            user = User.objects.create_user(username=email, email=email, first_name=name)
+            user = User.objects.create_user(
+                username=email, 
+                email=email, 
+                first_name=name,
+                role='TENANT',  # 🔧 FIX: Set role so JWT token contains correct role
+            )
             user.set_password("tenant123") 
             user.save()
 

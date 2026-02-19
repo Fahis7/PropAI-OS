@@ -1,31 +1,46 @@
+import os
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.apps import apps # Added for safe lookup
+from django.apps import apps
 
-@receiver(post_save, sender='maintenance.MaintenanceTicket') # Changed to Ticket
+@receiver(post_save, sender='maintenance.MaintenanceTicket')
 def ai_triage_analysis(sender, instance, created, **kwargs):
     """
-    Simulates the AI Triage. 
-    If a request is new, scan for emergency keywords.
+    🔧 FIX #7: Keyword-based fallback triage.
+    Only runs if:
+      1. Ticket is newly created
+      2. No image was uploaded (AI agent in views.py handles image-based triage)
+      3. Source is not already 'SYSTEM' (meaning AI already processed it)
     """
-    if created:
-        # We get the model inside the function to avoid Circular Import errors
-        MaintenanceTicket = apps.get_model('maintenance', 'MaintenanceTicket')
-        
-        emergency_keywords = ['flood', 'fire', 'burst', 'electric', 'smoke', 'gas']
-        urgent_keywords = ['leak', 'broken lock', 'ac not working', 'no water']
+    if not created:
+        return
+    
+    # Skip if AI agent already handled this ticket
+    if instance.source == 'SYSTEM':
+        return
+    
+    # Skip if ticket has an image — let the AI Vision agent in views.py handle it
+    if instance.image:
+        return
 
-        desc = instance.description.lower()
-        new_priority = 'MEDIUM'
-        
-        # Keyword matching logic
-        if any(word in desc for word in emergency_keywords):
-            new_priority = 'EMERGENCY'
-        elif any(word in desc for word in urgent_keywords):
-            new_priority = 'HIGH'
+    MaintenanceTicket = apps.get_model('maintenance', 'MaintenanceTicket')
+    
+    emergency_keywords = ['flood', 'fire', 'burst', 'electric', 'smoke', 'gas', 'explosion']
+    urgent_keywords = ['leak', 'broken lock', 'ac not working', 'no water', 'no electricity', 'sewage']
 
-        # Update without re-triggering signals
-        MaintenanceTicket.objects.filter(pk=instance.pk).update(
-            priority=new_priority
-        )
-        print(f"🤖 AI Triage Complete: Priority set to {new_priority}")
+    desc = instance.description.lower()
+    title = instance.title.lower() if instance.title else ''
+    combined = f"{desc} {title}"
+    
+    new_priority = 'MEDIUM'
+    
+    if any(word in combined for word in emergency_keywords):
+        new_priority = 'EMERGENCY'
+    elif any(word in combined for word in urgent_keywords):
+        new_priority = 'HIGH'
+
+    # Update without re-triggering signals
+    MaintenanceTicket.objects.filter(pk=instance.pk).update(
+        priority=new_priority
+    )
+    print(f"🤖 Keyword Triage Complete: Priority set to {new_priority}")

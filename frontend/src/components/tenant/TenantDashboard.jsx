@@ -19,7 +19,6 @@ const TenantDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // 👇 Helper for AI Priority Styling
     const getPriorityStyle = (priority) => {
         switch(priority) {
             case 'EMERGENCY': return 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'; 
@@ -29,7 +28,14 @@ const TenantDashboard = () => {
         }
     };
 
-    // 👇 Fetch real data from the 'me/' endpoint
+    const getStatusStyle = (status) => {
+        switch(status) {
+            case 'RESOLVED': case 'CLOSED': return 'text-green-400';
+            case 'IN_PROGRESS': return 'text-yellow-400';
+            default: return 'text-gray-400';
+        }
+    };
+
     useEffect(() => {
         const fetchMyProfile = async () => {
             try {
@@ -50,9 +56,8 @@ const TenantDashboard = () => {
         navigate('/login');
     };
 
-    // 👇 Logic for the 7-day Cheque Warning Banner
     const isChequeUrgent = () => {
-        if (!profile?.next_payment?.date) return false;
+        if (!profile?.next_payment?.date || profile?.next_payment?.date === "No Pending Payments") return false;
         const dueDate = new Date(profile.next_payment.date);
         const today = new Date();
         const diffTime = dueDate - today;
@@ -85,7 +90,9 @@ const TenantDashboard = () => {
                 <div className="flex gap-4">
                     <button className="text-gray-400 hover:text-white relative">
                         <Bell size={24} />
-                        <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-gray-800"></span>
+                        {profile?.maintenance_tickets?.length > 0 && (
+                            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-gray-800"></span>
+                        )}
                     </button>
                     <button onClick={handleLogout} className="text-red-400 hover:text-red-300">
                         <LogOut size={24} />
@@ -95,7 +102,7 @@ const TenantDashboard = () => {
 
             <main className="p-6 max-w-lg mx-auto space-y-6">
 
-                {/* 👇 7-Day Warning Banner */}
+                {/* 7-Day Warning Banner */}
                 {isChequeUrgent() && (
                     <div className="bg-red-900/40 border border-red-500 text-red-200 p-4 rounded-2xl flex items-center gap-3 animate-bounce">
                         <Calendar size={20} className="text-red-400" />
@@ -140,7 +147,10 @@ const TenantDashboard = () => {
                         <span className="font-semibold text-sm">Report Issue</span>
                     </button>
 
-                    <button className="bg-gray-800 hover:bg-gray-750 p-5 rounded-2xl border border-gray-700 flex flex-col items-center gap-3 transition group active:scale-95">
+                    <button 
+                        onClick={() => navigate('/tenant/history')}
+                        className="bg-gray-800 hover:bg-gray-750 p-5 rounded-2xl border border-gray-700 flex flex-col items-center gap-3 transition group active:scale-95"
+                    >
                         <div className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center group-hover:bg-green-600 transition">
                             <CreditCard className="text-green-400 group-hover:text-white" size={24} />
                         </div>
@@ -161,7 +171,10 @@ const TenantDashboard = () => {
                                 <div key={ticket.id} className="p-3 bg-gray-900/50 rounded-xl border border-gray-700/50 flex justify-between items-center transition-all hover:border-gray-600">
                                     <div className="overflow-hidden">
                                         <p className="text-sm font-semibold text-gray-200 truncate">{ticket.title || "Untitled Issue"}</p>
-                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">{ticket.ai_category || 'Triage in Progress...'}</p>
+                                        {/* 🔧 FIX #2: Changed ai_category → status display */}
+                                        <p className={`text-[10px] uppercase tracking-wider ${getStatusStyle(ticket.status)}`}>
+                                            {ticket.status?.replace('_', ' ') || 'Pending'}
+                                        </p>
                                     </div>
                                     <span className={`px-2 py-1 rounded-md text-[10px] font-black border shrink-0 ml-4 ${getPriorityStyle(ticket.priority)}`}>
                                         {ticket.priority}
