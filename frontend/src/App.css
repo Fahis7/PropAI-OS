@@ -1,0 +1,45 @@
+body {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header h1 {
+  color: #646cff;
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.property-card {
+  background: #2a2a2a;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #333;
+  transition: transform 0.2s;
+}
+
+.property-card:hover {
+  transform: translateY(-5px);
+  border-color: #646cff;
+}
+
+.stats {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #444;
+  color: #888;
+}
