@@ -1,13 +1,8 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-    LayoutDashboard, 
-    Building2, 
-    Users, 
-    Banknote, 
-    LogOut, 
-    Home,   // 👈 Added for Units
-    Wrench  // 👈 Added for Maintenance
+    LayoutDashboard, Building2, Users, Banknote, LogOut, Home, Wrench
 } from 'lucide-react';
+import Chatbot from '../components/Chatbot';
 
 function Layout() {
     const location = useLocation();
@@ -18,13 +13,12 @@ function Layout() {
         navigate('/login');
     };
 
-    // 👇 UPDATED MENU LIST (Added 'Units' and 'Maintenance')
     const menuItems = [
         { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'Properties', path: '/properties', icon: <Building2 size={20} /> },
-        { name: 'Units', path: '/units', icon: <Home size={20} /> },       // 👈 NEW: For Renting
+        { name: 'Units', path: '/units', icon: <Home size={20} /> },
         { name: 'Tenants', path: '/tenants', icon: <Users size={20} /> },
-        { name: 'Maintenance', path: '/maintenance', icon: <Wrench size={20} /> }, // 👈 NEW: For Repairs
+        { name: 'Maintenance', path: '/maintenance', icon: <Wrench size={20} /> },
         { name: 'Finance', path: '/finance', icon: <Banknote size={20} /> },
     ];
 
@@ -48,7 +42,6 @@ function Layout() {
                                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                             }`}
                         >
-                            {/* Icon Wrapper */}
                             <span className="flex items-center justify-center">
                                 {item.icon}
                             </span>
@@ -87,6 +80,9 @@ function Layout() {
                     </div>
                 </main>
             </div>
+
+            {/* 🆕 AI Chatbot — available on all admin pages */}
+            <Chatbot />
         </div>
     );
 }

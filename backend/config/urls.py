@@ -32,8 +32,11 @@ urlpatterns = [
     # Dashboard Stats
     path('api/dashboard/stats/', dashboard_stats, name='dashboard_stats'),
 
-    # 🆕 Phase 3: Smart Rent Pricing
+    # Phase 3: Smart Rent Pricing
     path('api/units/<int:unit_id>/smart-pricing/', smart_pricing, name='smart_pricing'),
+
+    # Phase 4: RAG Chatbot
+    path('api/', include('communication.urls')),
     
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),

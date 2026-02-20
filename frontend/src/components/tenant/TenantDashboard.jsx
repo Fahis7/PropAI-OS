@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios'; 
 import TenantNav from './TenantNav';
+import Chatbot from '../Chatbot';
 import { 
     Home, Wrench, CreditCard, LogOut, Bell, User, 
     Loader, AlertTriangle, Calendar, ChevronRight
@@ -269,7 +270,7 @@ const TenantDashboard = () => {
                     </div>
                 )}
             </main>
-
+            <Chatbot />
             <TenantNav notificationCount={notifCount} />
         </div>
     );
