@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from dateutil.relativedelta import relativedelta
+from django.utils import timezone
 import datetime
 import traceback
 
@@ -19,11 +20,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated]
 
-    # 🔧 FIX #6: Removed duplicate user creation from perform_create.
-    # User creation is now ONLY handled in TenantSerializer.create()
-
     def get_queryset(self):
-        """🔧 FIX: Add org filtering for SaaS security"""
         user = self.request.user
         if user.is_superuser:
             return Tenant.objects.all().order_by('-created_at')
@@ -41,7 +38,6 @@ class LeaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """🔧 FIX: Add org filtering for SaaS security"""
         user = self.request.user
         if user.is_superuser:
             return Lease.objects.all().order_by('-start_date')
@@ -66,7 +62,6 @@ class LeaseViewSet(viewsets.ModelViewSet):
         amount_per_cheque = lease.rent_amount / (num_cheques if num_cheques > 0 else 1)
         months_interval = 12 // num_cheques
 
-        # 🔧 FIX: Include organization from the unit's property
         org = lease.unit.property.organization if lease.unit and lease.unit.property else None
         
         for i in range(num_cheques):
@@ -103,10 +98,15 @@ class MyTenantProfileView(APIView):
                 "name": tenant.name,
                 "email": tenant.email,
                 "phone": tenant.phone,
+                "nationality": tenant.nationality,
+                "emirates_id": tenant.emirates_id,
+                "ejari_number": tenant.ejari_number,
                 "unit": None,
                 "lease": None,
                 "next_payment": {"amount": 0, "date": "No Pending Payments"},
-                "maintenance_tickets": []
+                "cheques": [],
+                "maintenance_tickets": [],
+                "notifications": [],
             }
 
             if active_lease:
@@ -116,36 +116,107 @@ class MyTenantProfileView(APIView):
                 data["unit"] = {
                     "id": unit_info.id,
                     "number": unit_info.unit_number,
-                    "property": property_name
+                    "type": unit_info.unit_type,
+                    "property": property_name,
+                    "bedrooms": unit_info.bedrooms,
+                    "bathrooms": float(unit_info.bathrooms),
+                    "square_feet": unit_info.square_feet,
                 }
                 data["lease"] = {
                     "start": active_lease.start_date,
                     "end": active_lease.end_date,
-                    "rent": active_lease.rent_amount
+                    "rent": active_lease.rent_amount,
+                    "frequency": active_lease.get_payment_frequency_display(),
                 }
                 
-                # 🔧 FIX #3: Use correct related name 'cheques'
-                next_cheque = active_lease.cheques.filter(
-                    status='PENDING'
-                ).order_by('cheque_date').first()
-                
+                # All cheques for this lease
+                all_cheques = active_lease.cheques.all().order_by('cheque_date')
+                data["cheques"] = [
+                    {
+                        "id": c.id,
+                        "cheque_number": c.cheque_number,
+                        "bank_name": c.bank_name,
+                        "amount": float(c.amount),
+                        "cheque_date": c.cheque_date,
+                        "status": c.status,
+                    } for c in all_cheques
+                ]
+
+                # Next pending payment
+                next_cheque = all_cheques.filter(status='PENDING').first()
                 if next_cheque:
                     data["next_payment"] = {
-                        "amount": next_cheque.amount,
-                        "date": next_cheque.cheque_date
+                        "amount": float(next_cheque.amount),
+                        "date": next_cheque.cheque_date,
                     }
 
-            tickets = MaintenanceTicket.objects.filter(tenant=tenant).order_by('-created_at')[:5]
+                # Build notifications
+                notifications = []
+                
+                # Cheque due within 7 days
+                today = datetime.date.today()
+                upcoming = all_cheques.filter(
+                    status='PENDING', 
+                    cheque_date__lte=today + datetime.timedelta(days=7),
+                    cheque_date__gte=today
+                )
+                for c in upcoming:
+                    days_left = (c.cheque_date - today).days
+                    notifications.append({
+                        "type": "PAYMENT_DUE",
+                        "severity": "HIGH",
+                        "title": f"Payment due in {days_left} day{'s' if days_left != 1 else ''}",
+                        "message": f"AED {float(c.amount):,.0f} — Cheque #{c.cheque_number}",
+                        "date": str(c.cheque_date),
+                    })
+                
+                # Bounced cheques
+                bounced = all_cheques.filter(status='BOUNCED')
+                for c in bounced:
+                    notifications.append({
+                        "type": "BOUNCED",
+                        "severity": "EMERGENCY",
+                        "title": "Cheque Bounced — Action Required",
+                        "message": f"AED {float(c.amount):,.0f} — Cheque #{c.cheque_number}",
+                        "date": str(c.cheque_date),
+                    })
+
+            # Maintenance tickets
+            tickets = MaintenanceTicket.objects.filter(tenant=tenant).order_by('-created_at')
             data["maintenance_tickets"] = [
                 {
                     "id": t.id,
                     "title": t.title or "General Maintenance",
+                    "description": t.description,
                     "priority": t.priority,
-                    "category": t.title,  # 🔧 FIX #2: Removed ai_category
                     "status": t.status,
-                    "date": t.created_at.strftime("%Y-%m-%d")
+                    "source": t.source,
+                    "date": t.created_at.strftime("%Y-%m-%d"),
                 } for t in tickets
             ]
+
+            # Maintenance status notifications
+            for t in tickets[:5]:
+                if t.status == 'IN_PROGRESS':
+                    data["notifications"].append({
+                        "type": "MAINTENANCE_UPDATE",
+                        "severity": "MEDIUM",
+                        "title": f"'{t.title}' is being worked on",
+                        "message": f"Status: In Progress",
+                        "date": t.updated_at.strftime("%Y-%m-%d"),
+                    })
+                elif t.status == 'RESOLVED':
+                    data["notifications"].append({
+                        "type": "MAINTENANCE_RESOLVED",
+                        "severity": "LOW",
+                        "title": f"'{t.title}' has been resolved",
+                        "message": "Your issue has been fixed",
+                        "date": t.updated_at.strftime("%Y-%m-%d"),
+                    })
+
+            # Sort notifications by severity
+            severity_order = {'EMERGENCY': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+            data["notifications"].sort(key=lambda x: severity_order.get(x["severity"], 4))
 
             return Response(data)
 

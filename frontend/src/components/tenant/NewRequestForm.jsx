@@ -1,21 +1,33 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { Camera, Upload, ArrowLeft, Loader } from 'lucide-react';
 
 const NewRequestForm = () => {
     const navigate = useNavigate();
-    const location = useLocation();
-    
-    // We try to get unit_id from the dashboard state if passed, 
-    // otherwise we might need to fetch it again or rely on the backend to know the user's unit.
-    // For now, let's assume the backend 'perform_create' finds the tenant's unit automatically.
     
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [image, setImage] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [profile, setProfile] = useState(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+
+    // 🔧 FIX: Fetch tenant profile to get unit_id and tenant_id
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const res = await api.get('me/');
+                setProfile(res.data);
+            } catch (err) {
+                console.error("Failed to load profile", err);
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+        fetchProfile();
+    }, []);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -27,30 +39,46 @@ const NewRequestForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!profile?.unit?.id) {
+            alert("No unit found for your profile. Please contact management.");
+            return;
+        }
+
         setLoading(true);
 
         const formData = new FormData();
         formData.append('title', title);
         formData.append('description', description);
+        formData.append('unit', profile.unit.id);       // 🔧 FIX: Send unit ID
+        formData.append('priority', 'LOW');
+        formData.append('source', 'TENANT');
+        
         if (image) {
-            formData.append('image', image); // This triggers the AI in the backend
+            formData.append('image', image);
         }
-        // We default priority to LOW; the AI will upgrade it if needed.
-        formData.append('priority', 'LOW'); 
 
         try {
             await api.post('maintenance/', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            // Redirect back to dashboard to see the new ticket
             navigate('/tenant/dashboard');
         } catch (err) {
             console.error("Upload failed", err);
-            alert("Failed to submit request. Please try again.");
+            const errorMsg = err.response?.data 
+                ? JSON.stringify(err.response.data) 
+                : "Failed to submit request.";
+            alert(errorMsg);
         } finally {
             setLoading(false);
         }
     };
+
+    if (profileLoading) return (
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center text-blue-500">
+            <Loader className="animate-spin" size={48} />
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-6 font-sans">
@@ -60,6 +88,14 @@ const NewRequestForm = () => {
                 </button>
                 <h1 className="text-xl font-bold">New Maintenance Request</h1>
             </header>
+
+            {/* Show current unit info */}
+            {profile?.unit && (
+                <div className="max-w-lg mx-auto mb-6 bg-gray-800 border border-gray-700 rounded-xl p-4">
+                    <p className="text-xs text-gray-400 uppercase font-bold">Reporting for</p>
+                    <p className="text-white font-semibold">{profile.unit.property} — Unit {profile.unit.number}</p>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-6">
                 
@@ -119,11 +155,11 @@ const NewRequestForm = () => {
                 {/* Submit Button */}
                 <button 
                     type="submit" 
-                    disabled={loading}
+                    disabled={loading || !profile?.unit}
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50"
                 >
                     {loading ? <Loader className="animate-spin" /> : <Upload size={20} />}
-                    {loading ? 'Analyzing...' : 'Submit Request'}
+                    {loading ? 'AI is Analyzing...' : 'Submit Request'}
                 </button>
             </form>
         </div>

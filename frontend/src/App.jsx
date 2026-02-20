@@ -17,8 +17,11 @@ import Units from "./components/admin/Units";
 
 // Tenant Components
 import TenantDashboard from "./components/tenant/TenantDashboard";
-import NewRequestForm from "./components/tenant/NewRequestForm";       // 🔧 FIX #1: Corrected path
-import MaintenanceList from "./components/tenant/MaintenanceList";     // 🔧 FIX #1: Corrected path
+import NewRequestForm from "./components/tenant/NewRequestForm";
+import MaintenanceList from "./components/tenant/MaintenanceList";
+import PaymentHistory from "./components/tenant/PaymentHistory";
+import Notifications from "./components/tenant/Notifications";
+import TenantProfile from "./components/tenant/TenantProfile";
 
 // --- THE SECURITY GUARD ---
 function ProtectedRoute({ children, allowedRoles }) {
@@ -75,7 +78,7 @@ function App() {
           } />
         </Route>
 
-        {/* --- TENANT ROUTES (Usually Full Screen / No Admin Sidebar) --- */}
+        {/* --- TENANT ROUTES --- */}
         <Route path="/tenant">
           <Route path="dashboard" element={
             <ProtectedRoute allowedRoles={["TENANT"]}><TenantDashboard /></ProtectedRoute>
@@ -83,8 +86,17 @@ function App() {
           <Route path="maintenance" element={
             <ProtectedRoute allowedRoles={["TENANT"]}><NewRequestForm /></ProtectedRoute>
           } />
-          <Route path="history" element={
+          <Route path="maintenance/history" element={
             <ProtectedRoute allowedRoles={["TENANT"]}><MaintenanceList /></ProtectedRoute>
+          } />
+          <Route path="payments" element={
+            <ProtectedRoute allowedRoles={["TENANT"]}><PaymentHistory /></ProtectedRoute>
+          } />
+          <Route path="notifications" element={
+            <ProtectedRoute allowedRoles={["TENANT"]}><Notifications /></ProtectedRoute>
+          } />
+          <Route path="profile" element={
+            <ProtectedRoute allowedRoles={["TENANT"]}><TenantProfile /></ProtectedRoute>
           } />
         </Route>
 
