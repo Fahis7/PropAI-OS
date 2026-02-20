@@ -7,8 +7,8 @@ from django.conf.urls.static import static
 # Import Views
 from core.views import dashboard_stats, MyTokenObtainPairView
 from finance.views import ChequeViewSet
-from properties.views import PropertyViewSet, UnitViewSet
-from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView # 👈 1. Added MyTenantProfileView
+from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
+from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView
 from rest_framework_simplejwt.views import TokenRefreshView
 from maintenance.views import MaintenanceViewSet
 
@@ -24,7 +24,6 @@ router.register(r'maintenance', MaintenanceViewSet, basename='maintenance')
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # 👇 2. FIX: Add this specific path BEFORE the router includes
     path('api/me/', MyTenantProfileView.as_view(), name='my_profile'),
 
     # API Routes
@@ -32,6 +31,9 @@ urlpatterns = [
     
     # Dashboard Stats
     path('api/dashboard/stats/', dashboard_stats, name='dashboard_stats'),
+
+    # 🆕 Phase 3: Smart Rent Pricing
+    path('api/units/<int:unit_id>/smart-pricing/', smart_pricing, name='smart_pricing'),
     
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
