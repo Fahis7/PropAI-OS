@@ -2,7 +2,9 @@ from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from dateutil.relativedelta import relativedelta
 from django.utils import timezone
 import datetime
@@ -10,11 +12,13 @@ import traceback
 
 from .models import Tenant, Lease
 from .serializers import TenantSerializer, LeaseSerializer
+from .ejari_generator import generate_ejari_pdf
 from finance.models import Cheque
 from properties.serializers import UnitSerializer 
 from maintenance.models import MaintenanceTicket
 
 User = get_user_model()
+
 
 class TenantViewSet(viewsets.ModelViewSet):
     serializer_class = TenantSerializer
@@ -78,6 +82,37 @@ class LeaseViewSet(viewsets.ModelViewSet):
             )
 
 
+# 🆕 Ejari Contract PDF Download
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def generate_ejari(request, lease_id):
+    """
+    Generate and download an Ejari-style tenancy contract PDF.
+    GET /api/leases/<lease_id>/ejari/
+    """
+    user = request.user
+
+    try:
+        if user.is_superuser:
+            lease = Lease.objects.get(id=lease_id)
+        elif hasattr(user, 'organization') and user.organization:
+            lease = Lease.objects.get(id=lease_id, unit__property__organization=user.organization)
+        else:
+            return Response({"error": "No organization found."}, status=403)
+    except Lease.DoesNotExist:
+        return Response({"error": "Lease not found or access denied."}, status=404)
+
+    print(f"📄 Generating Ejari contract for Lease #{lease.id} — {lease.tenant.name}")
+
+    pdf_buffer, ejari_number = generate_ejari_pdf(lease)
+
+    filename = f"Ejari_{ejari_number}_{lease.tenant.name.replace(' ', '_')}.pdf"
+
+    response = HttpResponse(pdf_buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
 class MyTenantProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -123,6 +158,7 @@ class MyTenantProfileView(APIView):
                     "square_feet": unit_info.square_feet,
                 }
                 data["lease"] = {
+                    "id": active_lease.id,
                     "start": active_lease.start_date,
                     "end": active_lease.end_date,
                     "rent": active_lease.rent_amount,
@@ -153,7 +189,6 @@ class MyTenantProfileView(APIView):
                 # Build notifications
                 notifications = []
                 
-                # Cheque due within 7 days
                 today = datetime.date.today()
                 upcoming = all_cheques.filter(
                     status='PENDING', 
@@ -170,7 +205,6 @@ class MyTenantProfileView(APIView):
                         "date": str(c.cheque_date),
                     })
                 
-                # Bounced cheques
                 bounced = all_cheques.filter(status='BOUNCED')
                 for c in bounced:
                     notifications.append({
@@ -195,7 +229,6 @@ class MyTenantProfileView(APIView):
                 } for t in tickets
             ]
 
-            # Maintenance status notifications
             for t in tickets[:5]:
                 if t.status == 'IN_PROGRESS':
                     data["notifications"].append({
@@ -214,7 +247,6 @@ class MyTenantProfileView(APIView):
                         "date": t.updated_at.strftime("%Y-%m-%d"),
                     })
 
-            # Sort notifications by severity
             severity_order = {'EMERGENCY': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
             data["notifications"].sort(key=lambda x: severity_order.get(x["severity"], 4))
 

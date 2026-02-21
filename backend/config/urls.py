@@ -8,7 +8,7 @@ from django.conf.urls.static import static
 from core.views import dashboard_stats, MyTokenObtainPairView
 from finance.views import ChequeViewSet
 from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
-from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView
+from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView, generate_ejari
 from rest_framework_simplejwt.views import TokenRefreshView
 from maintenance.views import MaintenanceViewSet
 
@@ -37,6 +37,9 @@ urlpatterns = [
 
     # Phase 4: RAG Chatbot
     path('api/', include('communication.urls')),
+
+    # Ejari Contract PDF Generator
+    path('api/leases/<int:lease_id>/ejari/', generate_ejari, name='generate_ejari'),
     
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),

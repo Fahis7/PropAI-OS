@@ -4,7 +4,7 @@ import LeaseForm from '../../components/admin/LeaseForm';
 import { 
     Building, Home, CheckCircle, Key, Loader, X,
     TrendingUp, TrendingDown, Minus, Brain, Sparkles,
-    ArrowUpRight, ArrowDownRight, Target, Lightbulb, BarChart3
+    ArrowUpRight, ArrowDownRight, Target, Lightbulb, BarChart3, FileText
 } from 'lucide-react';
 
 function Units() {
@@ -56,6 +56,36 @@ function Units() {
         } catch (err) {
             console.error("Failed to update price:", err);
             alert("Failed to update price. Please try again.");
+        }
+    };
+
+    const handleEjari = async (unit) => {
+        try {
+            // Find the active lease for this unit
+            const leasesRes = await api.get('leases/');
+            const lease = leasesRes.data.find(l => l.unit === unit.id && l.is_active);
+            
+            if (!lease) {
+                alert("No active lease found for this unit.");
+                return;
+            }
+
+            // Download the PDF
+            const res = await api.get(`leases/${lease.id}/ejari/`, {
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Ejari_Unit_${unit.unit_number}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Ejari generation failed:", err);
+            alert("Failed to generate Ejari contract. Please try again.");
         }
     };
 
@@ -150,9 +180,12 @@ function Units() {
                                             <Key size={16} /> Rent This Unit
                                         </button>
                                     ) : (
-                                        <div className="text-center py-2 text-gray-500 text-sm flex items-center justify-center gap-2">
-                                            <CheckCircle size={16} /> Currently Leased
-                                        </div>
+                                        <button 
+                                            onClick={() => handleEjari(unit)}
+                                            className="w-full bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition text-sm"
+                                        >
+                                            <FileText size={16} /> Generate Ejari Contract
+                                        </button>
                                     )}
                                 </div>
                             </div>
