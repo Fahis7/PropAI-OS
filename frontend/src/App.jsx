@@ -23,6 +23,9 @@ import PaymentHistory from "./components/tenant/PaymentHistory";
 import Notifications from "./components/tenant/Notifications";
 import TenantProfile from "./components/tenant/TenantProfile";
 
+// Technician Components
+import TechDashboard from "./components/technician/TechDashboard";
+
 // --- THE SECURITY GUARD ---
 function ProtectedRoute({ children, allowedRoles }) {
   const token = localStorage.getItem("access_token");
@@ -97,6 +100,13 @@ function App() {
           } />
           <Route path="profile" element={
             <ProtectedRoute allowedRoles={["TENANT"]}><TenantProfile /></ProtectedRoute>
+          } />
+        </Route>
+
+        {/* --- TECHNICIAN ROUTES --- */}
+        <Route path="/tech">
+          <Route path="dashboard" element={
+            <ProtectedRoute allowedRoles={["MAINTENANCE"]}><TechDashboard /></ProtectedRoute>
           } />
         </Route>
 

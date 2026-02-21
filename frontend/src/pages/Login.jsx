@@ -52,9 +52,11 @@ const Login = () => {
 
             // 5. Smart Redirect 🔀
             if (userRole === 'TENANT') {
-                navigate('/tenant/dashboard'); // Go to Tenant App
+                navigate('/tenant/dashboard');
+            } else if (userRole === 'MAINTENANCE') {
+                navigate('/tech/dashboard');
             } else {
-                navigate('/dashboard'); // Go to Admin Dashboard
+                navigate('/dashboard');
             }
         } catch (decodeError) {
             console.error("Token decode failed:", decodeError);

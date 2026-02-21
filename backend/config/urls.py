@@ -11,6 +11,7 @@ from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
 from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView, generate_ejari
 from rest_framework_simplejwt.views import TokenRefreshView
 from maintenance.views import MaintenanceViewSet
+from maintenance.views import MaintenanceViewSet, technician_stats
 
 # Router Setup
 router = DefaultRouter()
@@ -40,6 +41,9 @@ urlpatterns = [
 
     # Ejari Contract PDF Generator
     path('api/leases/<int:lease_id>/ejari/', generate_ejari, name='generate_ejari'),
+    
+    # Technician Stats
+    path('api/technician/stats/', technician_stats, name='technician_stats'),
     
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),

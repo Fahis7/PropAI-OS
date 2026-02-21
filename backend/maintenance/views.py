@@ -1,5 +1,8 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import api_view, permission_classes as perms
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from django.core.mail import send_mail
 from django.conf import settings
 
@@ -8,6 +11,7 @@ from .models import MaintenanceTicket
 from .serializers import MaintenanceTicketSerializer
 from .ai_agent import analyze_maintenance_image
 from tenants.models import Tenant
+
 
 class MaintenanceViewSet(OrganizationQuerySetMixin, viewsets.ModelViewSet):
     queryset = MaintenanceTicket.objects.all()
@@ -21,13 +25,19 @@ class MaintenanceViewSet(OrganizationQuerySetMixin, viewsets.ModelViewSet):
         if user.is_superuser:
             return MaintenanceTicket.objects.all().order_by('-created_at')
 
+        # Technician — only sees assigned tickets
+        if user.role == 'MAINTENANCE':
+            return MaintenanceTicket.objects.filter(
+                assigned_to=user
+            ).order_by('-created_at')
+
         # Staff with organization — use org filter
         if hasattr(user, 'organization') and user.organization:
             return MaintenanceTicket.objects.filter(
                 organization=user.organization
             ).order_by('-created_at')
 
-        # 🔧 FIX: Tenant — show only their own tickets
+        # Tenant — show only their own tickets
         if user.role == 'TENANT':
             try:
                 tenant = Tenant.objects.get(user=user)
@@ -42,26 +52,22 @@ class MaintenanceViewSet(OrganizationQuerySetMixin, viewsets.ModelViewSet):
         org = None
         tenant = None
 
-        # 🔧 FIX: If user is a tenant, get org from their unit's property
         if user.role == 'TENANT':
             try:
                 tenant = Tenant.objects.get(user=user)
             except Tenant.DoesNotExist:
                 raise ValidationError({"detail": "Tenant profile not found."})
 
-            # Get org from the unit being reported
             unit = serializer.validated_data.get('unit')
             if unit and unit.property:
                 org = unit.property.organization
             else:
                 raise ValidationError({"detail": "Could not determine organization from unit."})
         else:
-            # Staff user — use their org directly
             if not hasattr(user, 'organization') or not user.organization:
                 raise ValidationError({"detail": "You must belong to an Organization."})
             org = user.organization
 
-        # SAVE INITIAL TICKET
         ticket = serializer.save(organization=org, tenant=tenant)
 
         # AI ANALYSIS
@@ -82,7 +88,6 @@ class MaintenanceViewSet(OrganizationQuerySetMixin, viewsets.ModelViewSet):
                 ticket.source = 'SYSTEM'
                 ticket.save()
 
-                # EMERGENCY ALERT
                 if ticket.priority in ['HIGH', 'EMERGENCY']:
                     print("🚨 HIGH PRIORITY DETECTED - SENDING EMAIL ALERT")
                     
@@ -111,3 +116,45 @@ class MaintenanceViewSet(OrganizationQuerySetMixin, viewsets.ModelViewSet):
                         print("📧 Email Alert Sent!")
                     except Exception as e:
                         print(f"❌ Failed to send email alert: {e}")
+
+    def perform_update(self, serializer):
+        """Allow technicians to update status and resolution notes."""
+        user = self.request.user
+        
+        if user.role == 'MAINTENANCE':
+            # Technicians can only update status and resolution_notes
+            allowed_fields = {'status', 'resolution_notes'}
+            update_fields = set(serializer.validated_data.keys())
+            
+            disallowed = update_fields - allowed_fields
+            if disallowed:
+                raise ValidationError({
+                    "detail": f"Technicians can only update: status, resolution_notes. Not allowed: {disallowed}"
+                })
+        
+        serializer.save()
+
+
+# 🆕 Technician stats endpoint
+@api_view(['GET'])
+@perms([IsAuthenticated])
+def technician_stats(request):
+    """
+    GET /api/technician/stats/
+    Returns stats for the logged-in technician.
+    """
+    user = request.user
+    
+    if user.role != 'MAINTENANCE':
+        return Response({"error": "Not a technician."}, status=403)
+    
+    tickets = MaintenanceTicket.objects.filter(assigned_to=user)
+    
+    return Response({
+        "total": tickets.count(),
+        "open": tickets.filter(status='OPEN').count(),
+        "in_progress": tickets.filter(status='IN_PROGRESS').count(),
+        "resolved": tickets.filter(status='RESOLVED').count(),
+        "emergency": tickets.filter(priority='EMERGENCY').count(),
+        "high": tickets.filter(priority='HIGH').count(),
+    })
