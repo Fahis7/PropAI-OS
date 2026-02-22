@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-    LayoutDashboard, Building2, Users, Banknote, LogOut, Home, Wrench
+    LayoutDashboard, Building2, Users, Banknote, LogOut, Home, Wrench, BarChart3
 } from 'lucide-react';
 import Chatbot from '../components/Chatbot';
 
@@ -20,6 +20,7 @@ function Layout() {
         { name: 'Tenants', path: '/tenants', icon: <Users size={20} /> },
         { name: 'Maintenance', path: '/maintenance', icon: <Wrench size={20} /> },
         { name: 'Finance', path: '/finance', icon: <Banknote size={20} /> },
+        { name: 'Analytics', path: '/analytics', icon: <BarChart3 size={20} /> },
     ];
 
     return (
@@ -81,7 +82,7 @@ function Layout() {
                 </main>
             </div>
 
-            {/* 🆕 AI Chatbot — available on all admin pages */}
+            {/* AI Chatbot — available on all admin pages */}
             <Chatbot />
         </div>
     );

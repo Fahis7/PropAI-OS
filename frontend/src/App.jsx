@@ -14,6 +14,7 @@ import Tenants from "./components/admin/Tenants";
 import Finance from "./components/admin/Finance";
 import Maintenance from "./components/admin/Maintenance";
 import Units from "./components/admin/Units";
+import Analytics from "./components/admin/Analytics";
 
 // Tenant Components
 import TenantDashboard from "./components/tenant/TenantDashboard";
@@ -81,6 +82,9 @@ function App() {
           } />
           <Route path="/units" element={
             <ProtectedRoute allowedRoles={ADMIN_ROLES}><Units /></ProtectedRoute>
+          } />
+          <Route path="/analytics" element={
+            <ProtectedRoute allowedRoles={ADMIN_ROLES}><Analytics /></ProtectedRoute>
           } />
         </Route>
 

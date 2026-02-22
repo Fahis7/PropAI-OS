@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 # Import Views
-from core.views import dashboard_stats, MyTokenObtainPairView, manager_stats, update_property_rules
+from core.views import dashboard_stats, MyTokenObtainPairView, manager_stats, update_property_rules, analytics_data
 from finance.views import ChequeViewSet
 from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
 from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView, generate_ejari
@@ -45,6 +45,9 @@ urlpatterns = [
     
     # Technician Stats
     path('api/technician/stats/', technician_stats, name='technician_stats'),
+    
+    # Analytics
+    path('api/analytics/', analytics_data, name='analytics_data'),
     
     # Manager Dashboard
     path('api/manager/stats/', manager_stats, name='manager_stats'),

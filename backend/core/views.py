@@ -3,9 +3,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import Sum, Count, Q
+from django.db.models.functions import TruncMonth
+from datetime import datetime, timedelta
 
 from properties.models import Property, Unit
-from tenants.models import Tenant
+from tenants.models import Tenant, Lease
 from finance.models import Cheque
 from maintenance.models import MaintenanceTicket
 from core.models import User
@@ -83,7 +85,155 @@ def dashboard_stats(request):
     })
 
 
-# 🆕 Manager Dashboard Stats — scoped to their assigned property
+# 🆕 Analytics endpoint — rich chart data
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def analytics_data(request):
+    user = request.user
+
+    if user.is_superuser:
+        cheques = Cheque.objects.all()
+        tickets = MaintenanceTicket.objects.all()
+        properties = Property.objects.all()
+        units = Unit.objects.all()
+        leases = Lease.objects.all()
+    elif hasattr(user, 'organization') and user.organization:
+        org = user.organization
+        cheques = Cheque.objects.filter(organization=org)
+        tickets = MaintenanceTicket.objects.filter(organization=org)
+        properties = Property.objects.filter(organization=org)
+        units = Unit.objects.filter(property__organization=org)
+        leases = Lease.objects.filter(unit__property__organization=org)
+    else:
+        return Response({"error": "No organization."}, status=403)
+
+    # 1. Revenue by month (last 12 months)
+    revenue_by_month = (
+        cheques.filter(status='CLEARED')
+        .annotate(month=TruncMonth('cheque_date'))
+        .values('month')
+        .annotate(total=Sum('amount'))
+        .order_by('month')
+    )
+    revenue_chart = [
+        {"month": r['month'].strftime("%b %Y"), "revenue": float(r['total'])}
+        for r in revenue_by_month
+    ]
+
+    # 2. Payment status breakdown
+    payment_status = {
+        "cleared": cheques.filter(status='CLEARED').count(),
+        "pending": cheques.filter(status='PENDING').count(),
+        "deposited": cheques.filter(status='DEPOSITED').count(),
+        "bounced": cheques.filter(status='BOUNCED').count(),
+    }
+
+    # 3. Maintenance by category
+    category_data = (
+        tickets.values('ai_category')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    maintenance_categories = [
+        {"category": c['ai_category'] or 'GENERAL', "count": c['count']}
+        for c in category_data
+    ]
+
+    # 4. Maintenance by priority
+    priority_data = {
+        "emergency": tickets.filter(priority='EMERGENCY').count(),
+        "high": tickets.filter(priority='HIGH').count(),
+        "medium": tickets.filter(priority='MEDIUM').count(),
+        "low": tickets.filter(priority='LOW').count(),
+    }
+
+    # 5. Maintenance by status
+    ticket_status = {
+        "open": tickets.filter(status='OPEN').count(),
+        "in_progress": tickets.filter(status='IN_PROGRESS').count(),
+        "resolved": tickets.filter(status='RESOLVED').count(),
+        "closed": tickets.filter(status='CLOSED').count(),
+    }
+
+    # 6. Revenue by property
+    property_revenue = []
+    for p in properties:
+        p_cheques = cheques.filter(lease__unit__property=p, status='CLEARED')
+        rev = p_cheques.aggregate(Sum('amount'))['amount__sum'] or 0
+        p_units = p.units.count()
+        p_occupied = p.units.filter(status='OCCUPIED').count()
+        property_revenue.append({
+            "name": p.name,
+            "revenue": float(rev),
+            "units": p_units,
+            "occupied": p_occupied,
+            "occupancy": round((p_occupied / p_units * 100), 1) if p_units > 0 else 0,
+        })
+
+    # 7. Tickets over time (last 6 months)
+    tickets_by_month = (
+        tickets.annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    tickets_chart = [
+        {"month": t['month'].strftime("%b %Y"), "tickets": t['count']}
+        for t in tickets_by_month
+    ]
+
+    # 8. Lease expiry upcoming (next 90 days)
+    today = datetime.now().date()
+    expiring = leases.filter(
+        is_active=True,
+        end_date__lte=today + timedelta(days=90),
+        end_date__gte=today,
+    ).order_by('end_date')
+
+    expiring_leases = [
+        {
+            "tenant": l.tenant.name,
+            "unit": l.unit.unit_number,
+            "property": l.unit.property.name,
+            "end_date": l.end_date.strftime("%Y-%m-%d"),
+            "days_left": (l.end_date - today).days,
+            "rent": float(l.rent_amount),
+        }
+        for l in expiring[:10]
+    ]
+
+    # 9. Technician performance
+    techs = User.objects.filter(
+        role='MAINTENANCE',
+    )
+    if not user.is_superuser and hasattr(user, 'organization') and user.organization:
+        techs = techs.filter(organization=user.organization)
+
+    tech_performance = []
+    for t in techs:
+        assigned = tickets.filter(assigned_to=t)
+        tech_performance.append({
+            "name": t.get_full_name() or t.username,
+            "specialty": t.specialty or 'GENERAL',
+            "total": assigned.count(),
+            "resolved": assigned.filter(status__in=['RESOLVED', 'CLOSED']).count(),
+            "active": assigned.filter(status__in=['OPEN', 'IN_PROGRESS']).count(),
+        })
+
+    return Response({
+        "revenue_chart": revenue_chart,
+        "payment_status": payment_status,
+        "maintenance_categories": maintenance_categories,
+        "priority_data": priority_data,
+        "ticket_status": ticket_status,
+        "property_revenue": property_revenue,
+        "tickets_chart": tickets_chart,
+        "expiring_leases": expiring_leases,
+        "tech_performance": tech_performance,
+    })
+
+
+# Manager Dashboard Stats
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def manager_stats(request):
@@ -114,7 +264,6 @@ def manager_stats(request):
 
     tenants = Tenant.objects.filter(leases__unit__property=prop, leases__is_active=True).distinct()
 
-    # Technician workload
     org = prop.organization
     technicians = User.objects.filter(
         role='MAINTENANCE', organization=org
@@ -136,7 +285,6 @@ def manager_stats(request):
         for t in technicians
     ]
 
-    # Recent tickets
     recent_tickets = [
         {
             "id": t.id,
@@ -151,7 +299,6 @@ def manager_stats(request):
         for t in tickets.order_by('-created_at')[:15]
     ]
 
-    # Units list
     units_list = [
         {
             "id": u.id,
@@ -163,7 +310,6 @@ def manager_stats(request):
         for u in units
     ]
 
-    # Tenants list
     tenants_list = [
         {
             "id": t.id,
@@ -203,7 +349,6 @@ def manager_stats(request):
     })
 
 
-# 🆕 Update property rules
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_property_rules(request, property_id):
