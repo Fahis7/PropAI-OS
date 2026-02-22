@@ -54,6 +54,10 @@ def get_tenant_context(user):
             for c in cheques:
                 context += f"- {c.cheque_number}: AED {c.amount:,.0f} | Due: {c.cheque_date} | Status: {c.status}\n"
 
+        # 🆕 Property rules & regulations for chatbot RAG
+        if unit.property.rules_and_regulations:
+            context += f"\nBUILDING RULES & REGULATIONS:\n{unit.property.rules_and_regulations}\n"
+
     tickets = MaintenanceTicket.objects.filter(tenant=tenant).order_by('-created_at')[:10]
     if tickets.exists():
         context += f"\nMAINTENANCE TICKETS:\n"
@@ -109,6 +113,8 @@ def get_admin_context(user):
         p_units = p.units.count()
         p_vacant = p.units.filter(status='VACANT').count()
         context += f"- {p.name} ({p.property_type}) — {p.address} | Units: {p_units} (Vacant: {p_vacant})\n"
+        if p.rules_and_regulations:
+            context += f"  Rules: {p.rules_and_regulations[:200]}...\n"
 
     context += f"\nALL UNITS:\n"
     for u in units:
@@ -177,7 +183,8 @@ YOUR CAPABILITIES:
 2. Answer general knowledge questions on any topic
 3. Help tenants report maintenance issues
 4. Provide property management advice
-5. Be friendly, professional, and helpful
+5. Answer questions about building rules, pet policies, parking, gym hours, visitor policies, etc.
+6. Be friendly, professional, and helpful
 
 USER ROLE: {'Admin/Manager' if is_admin else 'Tenant'}
 USER NAME: {user.first_name or user.username}
@@ -189,6 +196,7 @@ PROPERTY DATA CONTEXT:
 
 RULES:
 - When answering about property data, use the context above for accurate numbers
+- When answering about building rules, refer to the BUILDING RULES & REGULATIONS section above
 - For general questions unrelated to properties, answer normally like a helpful AI
 - Use AED for currency, format numbers with commas
 - Be concise but thorough

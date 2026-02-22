@@ -3,20 +3,13 @@ from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
     ROLE_CHOICES = [
-        # --- Level 1: The Bosses ---
         ('SUPER_ADMIN', 'Platform Admin'),
         ('OWNER', 'Organization Owner'),
-
-        # --- Level 2: The Office Staff ---
         ('MANAGER', 'Property Manager'),
         ('FINANCE', 'Finance Officer'),
         ('AGENT', 'Leasing Agent'),
-
-        # --- Level 3: The Field Staff ---
         ('MAINTENANCE', 'Maintenance Staff'),
         ('SECURITY', 'Security Guard'),
-
-        # --- Level 4: The Customers ---
         ('TENANT', 'Tenant'),
     ]
 
@@ -43,10 +36,17 @@ class User(AbstractUser):
 
     phone = models.CharField(max_length=20, blank=True, null=True)
 
-    # 🆕 Technician specialty for auto-assignment
     specialty = models.CharField(
         max_length=20, choices=SPECIALTY_CHOICES, 
         default='GENERAL', blank=True, null=True
+    )
+
+    # 🆕 Manager's assigned property
+    managed_property = models.ForeignKey(
+        'properties.Property',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='managers',
     )
 
     def __str__(self):

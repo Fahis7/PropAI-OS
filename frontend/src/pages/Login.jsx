@@ -55,6 +55,8 @@ const Login = () => {
                 navigate('/tenant/dashboard');
             } else if (userRole === 'MAINTENANCE') {
                 navigate('/tech/dashboard');
+            } else if (userRole === 'MANAGER') {
+                navigate('/manager/dashboard');
             } else {
                 navigate('/dashboard');
             }

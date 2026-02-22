@@ -5,13 +5,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 # Import Views
-from core.views import dashboard_stats, MyTokenObtainPairView
+from core.views import dashboard_stats, MyTokenObtainPairView, manager_stats, update_property_rules
 from finance.views import ChequeViewSet
 from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
 from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView, generate_ejari
 from rest_framework_simplejwt.views import TokenRefreshView
 from maintenance.views import MaintenanceViewSet
 from maintenance.views import MaintenanceViewSet, technician_stats
+
 
 # Router Setup
 router = DefaultRouter()
@@ -44,6 +45,10 @@ urlpatterns = [
     
     # Technician Stats
     path('api/technician/stats/', technician_stats, name='technician_stats'),
+    
+    # Manager Dashboard
+    path('api/manager/stats/', manager_stats, name='manager_stats'),
+    path('api/properties/<int:property_id>/rules/', update_property_rules, name='update_property_rules'),
     
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
