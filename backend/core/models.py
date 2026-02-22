@@ -4,26 +4,35 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     ROLE_CHOICES = [
         # --- Level 1: The Bosses ---
-        ('SUPER_ADMIN', 'Platform Admin'), # You (PropOS Owner)
-        ('OWNER', 'Organization Owner'),   # The Landlord (Pays you)
+        ('SUPER_ADMIN', 'Platform Admin'),
+        ('OWNER', 'Organization Owner'),
 
         # --- Level 2: The Office Staff ---
-        ('MANAGER', 'Property Manager'),   # Day-to-day operations
-        ('FINANCE', 'Finance Officer'),    # Checks & Balances (Dubai Requirement)
-        ('AGENT', 'Leasing Agent'),        # Sales only (Viewings)
+        ('MANAGER', 'Property Manager'),
+        ('FINANCE', 'Finance Officer'),
+        ('AGENT', 'Leasing Agent'),
 
         # --- Level 3: The Field Staff ---
         ('MAINTENANCE', 'Maintenance Staff'),
-        ('SECURITY', 'Security Guard'),    # Building Access
+        ('SECURITY', 'Security Guard'),
 
         # --- Level 4: The Customers ---
         ('TENANT', 'Tenant'),
     ]
 
+    SPECIALTY_CHOICES = [
+        ('PLUMBING', 'Plumbing'),
+        ('ELECTRICAL', 'Electrical'),
+        ('HVAC', 'HVAC / Air Conditioning'),
+        ('STRUCTURAL', 'Structural'),
+        ('PEST_CONTROL', 'Pest Control'),
+        ('PAINTING', 'Painting'),
+        ('APPLIANCE', 'Appliance Repair'),
+        ('GENERAL', 'General Maintenance'),
+    ]
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='TENANT')
     
-    # Critical: Link staff to their Company. 
-    # We use a String Reference 'Organization' so we don't crash if Organization is defined below.
     organization = models.ForeignKey(
         'Organization', 
         on_delete=models.SET_NULL, 
@@ -34,14 +43,16 @@ class User(AbstractUser):
 
     phone = models.CharField(max_length=20, blank=True, null=True)
 
+    # 🆕 Technician specialty for auto-assignment
+    specialty = models.CharField(
+        max_length=20, choices=SPECIALTY_CHOICES, 
+        default='GENERAL', blank=True, null=True
+    )
+
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
 
 class Organization(models.Model):
-    """
-    The Company (e.g., 'BetterHomes'). 
-    Every Property and Tenant belongs to an Organization.
-    """
     name = models.CharField(max_length=255)
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='owned_organization')
     created_at = models.DateTimeField(auto_now_add=True)
