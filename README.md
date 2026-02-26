@@ -7,14 +7,15 @@
 ![Tailwind](https://img.shields.io/badge/Tailwind-3.x-38bdf8?logo=tailwindcss)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
-![AI](https://img.shields.io/badge/AI-Gemini%20%2B%20Groq-ff6f00)
+![AI](https://img.shields.io/badge/AI-Groq%20Llama%204%20%2B%203.3-ff6f00)
+![Cost](https://img.shields.io/badge/AI%20Cost-%240%20Free-brightgreen)
 
 ---
 
 ## ✨ Features
 
 ### 🤖 AI-Powered Capabilities
-- **Visual Triage AI** — Upload a photo of damage → Gemini Vision AI analyzes severity, auto-sets priority (Emergency/High/Medium/Low), generates title & description
+- **Visual Triage AI** — Upload a photo of damage → Llama 4 Scout Vision AI analyzes severity, auto-sets priority (Emergency/High/Medium/Low), generates title & description
 - **Smart Rent Pricing Engine** — AI analyzes unit type, area, bedrooms, location against Dubai market data → recommends optimal rent with confidence score
 - **RAG Chatbot Concierge** — Groq Llama 3.3 70B with full property context. Tenants ask about payments, leases, rules. Admins query across entire portfolio
 - **AI Auto-assign Technicians** — Detects ticket category (Plumbing/Electrical/HVAC/etc.) and assigns to the best available technician based on specialty + workload
@@ -63,7 +64,7 @@
 | **Frontend** | React 18, Tailwind CSS, Recharts, Lucide Icons |
 | **Backend** | Django 5.2, Django REST Framework, SimpleJWT |
 | **Database** | PostgreSQL 16 (pgvector-ready) |
-| **AI / LLM** | Google Gemini Vision (triage), Groq Llama 3.3 70B (chatbot) |
+| **AI / LLM** | Groq Llama 4 Scout 17B Vision (triage), Groq Llama 3.3 70B (chatbot + pricing) — 100% FREE |
 | **PDF Engine** | ReportLab |
 | **Task Queue** | Celery + Redis |
 | **DevOps** | Docker Compose (5 containers) |
@@ -74,8 +75,7 @@
 
 ### Prerequisites
 - Docker & Docker Compose
-- Gemini API Key ([Get it here](https://aistudio.google.com/apikey))
-- Groq API Key ([Get it here](https://console.groq.com/keys))
+- Groq API Key ([Get it here — FREE](https://console.groq.com/keys))
 
 ### 1. Clone & Setup
 
@@ -101,8 +101,7 @@ DB_PASSWORD=propos_password
 DB_HOST=db
 DB_PORT=5432
 
-# AI Keys
-GENAI_API_KEY=your-gemini-api-key
+# AI Keys (Groq is 100% FREE)
 GROQ_API_KEY=your-groq-api-key
 
 # Email (optional)
@@ -236,8 +235,8 @@ Tenant submits ticket (with optional photo)
          │
          ▼
    ┌─────────────┐
-   │ Gemini Vision│ ← Analyzes damage photo
-   │   AI Triage  │ → Sets priority, generates description
+   │ Llama 4 Scout│ ← Analyzes damage photo (FREE via Groq)
+   │  Vision AI   │ → Sets priority, generates description
    └──────┬──────┘
           │
           ▼
