@@ -6,6 +6,5 @@ Pillow
 djangorestframework-simplejwt
 celery  
 redis
-google-generativeai
 groq
 reportlab
