@@ -3,8 +3,7 @@ import { LayoutDashboard, Building2, Users, Banknote, LogOut, Home, Wrench, BarC
 import Chatbot from '../components/Chatbot';
 import NotificationBell from '../components/NotificationBell';
 import ThemeToggle from '../components/ThemeToggle';
-import { useTheme } from '../context/Themecontext';
-
+import { useTheme } from '../context/ThemeContext';
 function Layout() {
     const location = useLocation();
     const navigate = useNavigate();

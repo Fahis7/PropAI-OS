@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Lock, Mail, Eye, EyeOff, Building, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { useTheme } from './context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import api from '../api/axios';
 
