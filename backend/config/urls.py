@@ -7,10 +7,13 @@ from django.conf.urls.static import static
 # Import Views
 from core.views import dashboard_stats, MyTokenObtainPairView, manager_stats, update_property_rules, analytics_data
 from finance.views import ChequeViewSet
-from properties.views import PropertyViewSet, UnitViewSet, smart_pricing
+from properties.views import (
+    PropertyViewSet, UnitViewSet, smart_pricing,
+    public_properties, public_property_detail, submit_inquiry,
+    manager_inquiries, onboard_tenant,
+)
 from tenants.views import TenantViewSet, LeaseViewSet, MyTenantProfileView, generate_ejari
 from rest_framework_simplejwt.views import TokenRefreshView
-from maintenance.views import MaintenanceViewSet
 from maintenance.views import MaintenanceViewSet, technician_stats
 
 
@@ -25,34 +28,41 @@ router.register(r'maintenance', MaintenanceViewSet, basename='maintenance')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
+
     path('api/me/', MyTenantProfileView.as_view(), name='my_profile'),
 
     # API Routes
     path('api/', include(router.urls)),
-    
+
     # Dashboard Stats
     path('api/dashboard/stats/', dashboard_stats, name='dashboard_stats'),
+
+    # Analytics
+    path('api/analytics/', analytics_data, name='analytics_data'),
 
     # Phase 3: Smart Rent Pricing
     path('api/units/<int:unit_id>/smart-pricing/', smart_pricing, name='smart_pricing'),
 
-    # Phase 4: RAG Chatbot
+    # Phase 4: RAG Chatbot + Notifications
     path('api/', include('communication.urls')),
 
     # Ejari Contract PDF Generator
     path('api/leases/<int:lease_id>/ejari/', generate_ejari, name='generate_ejari'),
-    
+
     # Technician Stats
     path('api/technician/stats/', technician_stats, name='technician_stats'),
-    
-    # Analytics
-    path('api/analytics/', analytics_data, name='analytics_data'),
-    
+
     # Manager Dashboard
     path('api/manager/stats/', manager_stats, name='manager_stats'),
     path('api/properties/<int:property_id>/rules/', update_property_rules, name='update_property_rules'),
-    
+    path('api/manager/inquiries/', manager_inquiries, name='manager_inquiries'),
+    path('api/manager/onboard-tenant/', onboard_tenant, name='onboard_tenant'),
+
+    # Public Pages (No login required)
+    path('api/public/properties/', public_properties, name='public_properties'),
+    path('api/public/properties/<int:property_id>/', public_property_detail, name='public_property_detail'),
+    path('api/public/inquiries/', submit_inquiry, name='submit_inquiry'),
+
     # Authentication
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

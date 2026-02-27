@@ -5,6 +5,8 @@ import { jwtDecode } from "jwt-decode";
 import Login from "./pages/Login";
 import Layout from "./pages/Layout";
 import Unauthorized from "./components/Unauthorized";
+import PublicHome from "./pages/PublicHome";
+import PropertyPublic from "./pages/PropertyPublic";
 
 // Admin Components
 import AdminDashboard from "./components/admin/AdminDashboard";
@@ -27,7 +29,7 @@ import TenantProfile from "./components/tenant/TenantProfile";
 // Technician Components
 import TechDashboard from "./components/technician/TechDashboard";
 
-//manager components
+// Manager Components
 import ManagerDashboard from "./components/manager/ManagerDashboard";
 
 // --- THE SECURITY GUARD ---
@@ -57,6 +59,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* --- PUBLIC ROUTES (No login) --- */}
+        <Route path="/" element={<PublicHome />} />
+        <Route path="/property/:propertyId" element={<PropertyPublic />} />
         <Route path="/login" element={<Login />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
@@ -110,13 +115,6 @@ function App() {
           } />
         </Route>
 
-        {/* --- MANAGER ROUTES --- */}
-        <Route path="/manager">
-          <Route path="dashboard" element={
-            <ProtectedRoute allowedRoles={["MANAGER"]}><ManagerDashboard /></ProtectedRoute>
-          } />
-        </Route>
-
         {/* --- TECHNICIAN ROUTES --- */}
         <Route path="/tech">
           <Route path="dashboard" element={
@@ -124,8 +122,15 @@ function App() {
           } />
         </Route>
 
+        {/* --- MANAGER ROUTES --- */}
+        <Route path="/manager">
+          <Route path="dashboard" element={
+            <ProtectedRoute allowedRoles={["MANAGER"]}><ManagerDashboard /></ProtectedRoute>
+          } />
+        </Route>
+
         {/* Catch-all redirects */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );
