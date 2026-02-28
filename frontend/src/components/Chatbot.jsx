@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useTheme } from '../context/ThemeContext';
 import { MessageSquare, X, Send, Bot, User, Loader, Sparkles, ArrowRight } from 'lucide-react';
@@ -7,6 +7,7 @@ import { MessageSquare, X, Send, Bot, User, Loader, Sparkles, ArrowRight } from 
 function Chatbot() {
     const { c, isDark } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         { text: "Hello! I'm PropAI Assistant. I can answer questions about your property, payments, maintenance — or anything else! How can I help?", sender: "bot" }
@@ -15,6 +16,9 @@ function Chatbot() {
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+
+    // Detect if on a page with bottom nav bar (tenant pages)
+    const hasBottomNav = location.pathname.startsWith('/tenant');
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
     useEffect(() => { if (isOpen && inputRef.current) inputRef.current.focus(); }, [isOpen]);
@@ -40,7 +44,7 @@ function Chatbot() {
     const quickQuestions = ["When is my next payment?", "How many vacant units?", "Show maintenance tickets"];
 
     return (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className={"fixed right-6 z-50 " + (hasBottomNav ? "bottom-24" : "bottom-6")}>
             {!isOpen && (
                 <button onClick={() => setIsOpen(true)}
                     className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white p-4 rounded-2xl shadow-xl shadow-amber-500/30 transition-all hover:scale-110">
@@ -52,7 +56,8 @@ function Chatbot() {
             )}
 
             {isOpen && (
-                <div className={'w-[360px] md:w-[400px] rounded-2xl overflow-hidden flex flex-col border ' + c.card + ' ' + c.border + ' ' + c.shadow} style={{ height: '520px' }}>
+                <div className={'w-[360px] md:w-[400px] rounded-2xl overflow-hidden flex flex-col border ' + c.card + ' ' + c.border + ' ' + c.shadow}
+                    style={{ height: hasBottomNav ? '440px' : '520px' }}>
                     <div className="bg-gradient-to-r from-amber-600 to-amber-500 p-4 flex justify-between items-center">
                         <div className="flex items-center gap-2.5">
                             <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
