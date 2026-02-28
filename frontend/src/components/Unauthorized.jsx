@@ -1,35 +1,24 @@
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
+import { ShieldX } from 'lucide-react';
 
 function Unauthorized() {
     const navigate = useNavigate();
+    const { c } = useTheme();
 
     return (
-        <div className="flex h-screen items-center justify-center bg-gray-900 text-white p-4">
-            <div className="max-w-md w-full bg-gray-800 p-8 rounded-xl shadow-2xl border border-red-500/30 text-center">
-                <div className="mx-auto w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4">
-                    <span className="text-3xl">🚫</span>
+        <div className={'flex h-screen items-center justify-center p-4 ' + c.bg}>
+            <div className={'max-w-md w-full p-8 rounded-2xl border text-center ' + c.card + ' ' + c.border + ' ' + c.shadow}>
+                <div className={'mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 border ' + c.redBg}>
+                    <ShieldX size={32} />
                 </div>
-                
-                <h1 className="text-3xl font-bold text-red-500 mb-2">Access Denied</h1>
-                <p className="text-gray-400 mb-6">
-                    You do not have permission to view this page.
-                </p>
-
+                <h1 className={'text-2xl font-extrabold mb-2 ' + c.red}>Access Denied</h1>
+                <p className={c.textSec + ' mb-6 text-sm'}>You do not have permission to view this page.</p>
                 <div className="flex flex-col gap-3">
-                    <button 
-                        onClick={() => navigate(-1)}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition"
-                    >
-                        Go Back
-                    </button>
-                    
-                    <button 
-                        onClick={() => {
-                            localStorage.clear();
-                            navigate('/login');
-                        }}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition"
-                    >
+                    <button onClick={() => navigate(-1)}
+                        className={c.btn2 + ' px-4 py-2.5 rounded-xl text-sm font-bold transition'}>Go Back</button>
+                    <button onClick={() => { localStorage.clear(); navigate('/login'); }}
+                        className={c.btn + ' px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-500/20 transition'}>
                         Logout & Switch Account
                     </button>
                 </div>

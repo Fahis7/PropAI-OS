@@ -2,171 +2,83 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import TenantNav from './TenantNav';
-import { 
-    Wrench, Loader, CheckCircle, Clock, AlertCircle, 
-    AlertTriangle, Plus, Filter
-} from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { Wrench, Loader, CheckCircle, Clock, AlertCircle, Plus } from 'lucide-react';
 
 const MaintenanceList = () => {
+    const { c, isDark } = useTheme();
     const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const res = await api.get('me/');
-                setProfile(res.data);
-            } catch (err) {
-                console.error("Failed to load profile", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
+    useEffect(() => { api.get('me/').then(r => setProfile(r.data)).catch(e => console.error(e)).finally(() => setLoading(false)); }, []);
 
-    const getPriorityStyle = (priority) => {
-        switch(priority) {
-            case 'EMERGENCY': return 'bg-red-500/20 text-red-400 border-red-500/50';
-            case 'HIGH': return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
-            case 'MEDIUM': return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-            default: return 'bg-gray-700 text-gray-400 border-gray-600';
-        }
-    };
+    const getPriorityStyle = (p) => { switch(p) { case 'EMERGENCY': return c.redBg; case 'HIGH': return c.yellowBg; case 'MEDIUM': return c.blueBg; default: return isDark ? 'bg-gray-700 text-gray-400 border-gray-600':'bg-gray-100 text-gray-500 border-gray-200'; }};
+    const getStatusIcon = (s) => { switch(s) { case 'RESOLVED': case 'CLOSED': return <CheckCircle size={18} className={c.green}/>; case 'IN_PROGRESS': return <Clock size={18} className={c.yellow}/>; case 'OPEN': return <AlertCircle size={18} className={c.blue}/>; default: return <Clock size={18} className={c.textMut}/>; }};
+    const getStatusStyle = (s) => { switch(s) { case 'RESOLVED': case 'CLOSED': return c.green; case 'IN_PROGRESS': return c.yellow; case 'OPEN': return c.blue; default: return c.textSec; }};
 
-    const getStatusIcon = (status) => {
-        switch(status) {
-            case 'RESOLVED': case 'CLOSED': return <CheckCircle size={18} className="text-green-400" />;
-            case 'IN_PROGRESS': return <Clock size={18} className="text-yellow-400" />;
-            case 'OPEN': return <AlertCircle size={18} className="text-blue-400" />;
-            default: return <Clock size={18} className="text-gray-400" />;
-        }
-    };
-
-    const getStatusStyle = (status) => {
-        switch(status) {
-            case 'RESOLVED': case 'CLOSED': return 'text-green-400';
-            case 'IN_PROGRESS': return 'text-yellow-400';
-            case 'OPEN': return 'text-blue-400';
-            default: return 'text-gray-400';
-        }
-    };
-
-    if (loading) return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center text-blue-500">
-            <Loader className="animate-spin" size={48} />
-        </div>
-    );
+    if (loading) return <div className={'min-h-screen flex items-center justify-center ' + c.bg}><Loader className={'animate-spin ' + c.accent} size={48} /></div>;
 
     const tickets = profile?.maintenance_tickets || [];
     const filtered = filter === 'ALL' ? tickets : tickets.filter(t => t.status === filter);
-    const notifCount = profile?.notifications?.length || 0;
 
     return (
-        <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-24">
-            
-            {/* Header */}
-            <header className="bg-gray-800 border-b border-gray-700 p-5 sticky top-0 z-10">
+        <div className={'min-h-screen font-sans pb-24 ' + c.bg + ' ' + c.text}>
+            <header className={'border-b p-5 sticky top-0 z-10 ' + c.card + ' ' + c.border}>
                 <div className="flex items-center justify-between">
-                    <h1 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Wrench size={20} className="text-orange-400" /> AI Support Tracking
-                    </h1>
-                    <button 
-                        onClick={() => navigate('/tenant/maintenance')}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                    >
+                    <h1 className={'text-lg font-bold flex items-center gap-2 ' + c.heading}><Wrench size={20} className={c.yellow} /> AI Support Tracking</h1>
+                    <button onClick={() => navigate('/tenant/maintenance')} className={c.btn + ' px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-lg shadow-amber-500/20'}>
                         <Plus size={14} /> New Request
                     </button>
                 </div>
             </header>
-
-            <main className="p-5 max-w-lg mx-auto space-y-4">
-
-                {/* Summary */}
+            <main className="p-5 max-w-lg mx-auto space-y-4 fade-in">
                 <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
-                        <p className="text-lg font-bold text-blue-400">{tickets.filter(t => t.status === 'OPEN').length}</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Open</p>
-                    </div>
-                    <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
-                        <p className="text-lg font-bold text-yellow-400">{tickets.filter(t => t.status === 'IN_PROGRESS').length}</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">In Progress</p>
-                    </div>
-                    <div className="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
-                        <p className="text-lg font-bold text-green-400">{tickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED').length}</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-bold">Resolved</p>
-                    </div>
+                    {[{val:tickets.filter(t=>t.status==='OPEN').length,label:'Open',color:c.blue},
+                      {val:tickets.filter(t=>t.status==='IN_PROGRESS').length,label:'In Progress',color:c.yellow},
+                      {val:tickets.filter(t=>t.status==='RESOLVED'||t.status==='CLOSED').length,label:'Resolved',color:c.green}].map((s,i)=>(
+                        <div key={i} className={'rounded-xl p-3 border text-center ' + c.card + ' ' + c.border}>
+                            <p className={'text-lg font-bold ' + s.color}>{s.val}</p>
+                            <p className={'text-[10px] uppercase font-bold ' + c.textMut}>{s.label}</p>
+                        </div>
+                    ))}
                 </div>
-
-                {/* Filter Tabs */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                    {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((status) => {
-                        const count = status === 'ALL' ? tickets.length : tickets.filter(t => t.status === status).length;
-                        if (count === 0 && status !== 'ALL') return null;
-                        return (
-                            <button
-                                key={status}
-                                onClick={() => setFilter(status)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
-                                    filter === status 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
-                                }`}
-                            >
-                                {status.replace('_', ' ')} ({count})
-                            </button>
-                        );
+                    {['ALL','OPEN','IN_PROGRESS','RESOLVED','CLOSED'].map(s => {
+                        const cnt = s === 'ALL' ? tickets.length : tickets.filter(t=>t.status===s).length;
+                        if (cnt === 0 && s !== 'ALL') return null;
+                        return (<button key={s} onClick={() => setFilter(s)}
+                            className={'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition border ' + (filter === s ? c.btn : c.btn2)}>
+                            {s.replace('_',' ') + ' (' + cnt + ')'}</button>);
                     })}
                 </div>
-
-                {/* Ticket List */}
                 <div className="space-y-3">
-                    {filtered.length > 0 ? (
-                        filtered.map((ticket) => (
-                            <div key={ticket.id} className="bg-gray-800 p-4 rounded-xl border border-gray-700 transition-all hover:border-gray-600">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        {getStatusIcon(ticket.status)}
-                                        <h3 className="font-semibold text-sm text-white truncate">{ticket.title}</h3>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold border shrink-0 ml-3 ${getPriorityStyle(ticket.priority)}`}>
-                                        {ticket.priority}
-                                    </span>
-                                </div>
-                                <p className="text-gray-400 text-xs mb-3 line-clamp-2 ml-7">{ticket.description}</p>
-                                <div className="flex justify-between items-center text-xs ml-7">
-                                    <span className={`font-medium ${getStatusStyle(ticket.status)}`}>
-                                        {ticket.status.replace('_', ' ')}
-                                    </span>
-                                    <div className="flex items-center gap-3 text-gray-500">
-                                        {ticket.source === 'SYSTEM' && (
-                                            <span className="bg-purple-500/10 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded text-[9px] font-bold">
-                                                AI Triaged
-                                            </span>
-                                        )}
-                                        <span>{ticket.date}</span>
-                                    </div>
+                    {filtered.length > 0 ? filtered.map(t => (
+                        <div key={t.id} className={'p-4 rounded-xl border transition-all ' + c.card + ' ' + c.border + ' ' + c.cardHover}>
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">{getStatusIcon(t.status)}<h3 className={'font-semibold text-sm truncate ' + c.heading}>{t.title}</h3></div>
+                                <span className={'px-2 py-1 rounded-md text-[10px] font-bold border shrink-0 ml-3 ' + getPriorityStyle(t.priority)}>{t.priority}</span>
+                            </div>
+                            <p className={'text-xs mb-3 line-clamp-2 ml-7 ' + c.textSec}>{t.description}</p>
+                            <div className="flex justify-between items-center text-xs ml-7">
+                                <span className={'font-medium ' + getStatusStyle(t.status)}>{t.status.replace('_',' ')}</span>
+                                <div className="flex items-center gap-3">
+                                    {t.source === 'SYSTEM' && <span className={'px-1.5 py-0.5 rounded text-[9px] font-bold border ' + c.purpleBg}>AI Triaged</span>}
+                                    <span className={c.textMut}>{t.date}</span>
                                 </div>
                             </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-12 border-2 border-dashed border-gray-700 rounded-xl">
-                            <Wrench size={36} className="text-gray-700 mx-auto mb-3" />
-                            <p className="text-gray-500 font-medium">No tickets found.</p>
-                            <button 
-                                onClick={() => navigate('/tenant/maintenance')}
-                                className="mt-4 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition"
-                            >
-                                Report an Issue
-                            </button>
+                        </div>
+                    )) : (
+                        <div className={'text-center py-12 border-2 border-dashed rounded-xl ' + c.border}>
+                            <Wrench size={36} className={c.textMut + ' mx-auto mb-3'} />
+                            <p className={c.textMut + ' font-medium'}>No tickets found.</p>
+                            <button onClick={() => navigate('/tenant/maintenance')} className={c.btn + ' mt-4 px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-amber-500/20'}>Report an Issue</button>
                         </div>
                     )}
                 </div>
             </main>
-
-            <TenantNav notificationCount={notifCount} />
+            <TenantNav notificationCount={profile?.notifications?.length || 0} />
         </div>
     );
 };
