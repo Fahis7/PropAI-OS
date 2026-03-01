@@ -54,7 +54,7 @@ def get_tenant_context(user):
             for c in cheques:
                 context += f"- {c.cheque_number}: AED {c.amount:,.0f} | Due: {c.cheque_date} | Status: {c.status}\n"
 
-        # 🆕 Property rules & regulations for chatbot RAG
+        # Property rules & regulations for chatbot RAG
         if unit.property.rules_and_regulations:
             context += f"\nBUILDING RULES & REGULATIONS:\n{unit.property.rules_and_regulations}\n"
 
@@ -114,7 +114,7 @@ def get_admin_context(user):
         p_vacant = p.units.filter(status='VACANT').count()
         context += f"- {p.name} ({p.property_type}) — {p.address} | Units: {p_units} (Vacant: {p_vacant})\n"
         if p.rules_and_regulations:
-            context += f"  Rules: {p.rules_and_regulations[:200]}...\n"
+            context += f"  BUILDING RULES & REGULATIONS for {p.name}:\n{p.rules_and_regulations}\n"
 
     context += f"\nALL UNITS:\n"
     for u in units:
@@ -147,6 +147,19 @@ def detect_ticket_intent(message):
     return any(kw in msg_lower for kw in keywords)
 
 
+def detect_policy_intent(message):
+    """Check if the user is asking about building rules/policies."""
+    keywords = ['pet', 'cat', 'dog', 'animal', 'parking', 'visitor', 'guest',
+                'noise', 'quiet', 'party', 'music', 'gym', 'pool', 'swim',
+                'bbq', 'grill', 'smoke', 'smoking', 'balcony', 'laundry',
+                'garbage', 'trash', 'recycling', 'moving', 'move in', 'move out',
+                'renovation', 'modify', 'subletting', 'sublet', 'airbnb',
+                'allowed', 'permit', 'permission', 'rule', 'regulation', 'policy',
+                'can i', 'is it possible', 'am i allowed', 'do you allow']
+    msg_lower = message.lower()
+    return any(kw in msg_lower for kw in keywords)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def chat_view(request):
@@ -175,6 +188,9 @@ def chat_view(request):
     # Detect maintenance ticket intent
     wants_ticket = not is_admin and detect_ticket_intent(message)
 
+    # Detect if asking about building rules/policies
+    asks_about_rules = detect_policy_intent(message)
+
     # Build system prompt
     system_prompt = f"""You are PropOS AI, an intelligent property management assistant for a Dubai-based SaaS platform.
 
@@ -183,7 +199,7 @@ YOUR CAPABILITIES:
 2. Answer general knowledge questions on any topic
 3. Help tenants report maintenance issues
 4. Provide property management advice
-5. Answer questions about building rules, pet policies, parking, gym hours, visitor policies, etc.
+5. Answer questions about building rules, pet policies, parking, gym hours, visitor policies, noise rules, etc.
 6. Be friendly, professional, and helpful
 
 USER ROLE: {'Admin/Manager' if is_admin else 'Tenant'}
@@ -194,15 +210,16 @@ USER NAME: {user.first_name or user.username}
 PROPERTY DATA CONTEXT:
 {rag_context}
 
-RULES:
+RULES FOR ANSWERING:
 - When answering about property data, use the context above for accurate numbers
-- When answering about building rules, refer to the BUILDING RULES & REGULATIONS section above
+- **CRITICAL: When the user asks about pets, animals, parking, visitors, noise, gym, pool, BBQ, smoking, parties, renovations, subletting, moving in/out, garbage disposal, laundry, balcony, or ANY building policy question — you MUST check the BUILDING RULES & REGULATIONS section in the context above and base your answer on those rules. If the rules mention the topic, quote the relevant rule. If the rules don't mention the topic, say "The building rules don't specifically address this — I recommend checking with your property manager for clarification."**
 - For general questions unrelated to properties, answer normally like a helpful AI
 - Use AED for currency, format numbers with commas
 - Be concise but thorough
 - If you don't know something specific, say so honestly
 - For maintenance issues from tenants, ask for details and suggest creating a ticket
 - Keep responses short and conversational (2-4 sentences for simple questions)
+- When referencing a building rule, mention that it comes from the property's official rules & regulations
 """
 
     if wants_ticket:
@@ -210,6 +227,15 @@ RULES:
 SPECIAL: The tenant seems to be reporting a maintenance issue. 
 Ask for: 1) What is the problem? 2) Which room/area? 3) How urgent is it?
 Then confirm you'll help them submit a maintenance request.
+"""
+
+    if asks_about_rules:
+        system_prompt += """
+SPECIAL: The user is asking about a building policy or rule. 
+You MUST look at the BUILDING RULES & REGULATIONS section in the context above.
+- If the rules mention this topic, quote the specific rule and say "According to your building's rules and regulations..."
+- If the rules do NOT mention this specific topic, say "The building rules don't specifically mention this. I'd recommend contacting your property manager for clarification."
+- Do NOT make up rules that aren't in the context. Only reference what is actually written in the building rules.
 """
 
     # Check if Groq is available
