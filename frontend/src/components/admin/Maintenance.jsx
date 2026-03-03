@@ -58,7 +58,7 @@ function Maintenance() {
                                 <span className={'block text-xs font-mono mt-2 ' + c.textMut}>{new Date(t.created_at).toLocaleDateString()}</span>
                                 <h3 className={'text-base font-bold mt-1 mb-1 ' + c.heading}>{t.title}</h3>
                                 <p className={'text-sm mb-4 line-clamp-2 ' + c.textSec}>{t.description}</p>
-                                {t.image && <img src={'http://localhost:8000' + t.image} alt="Evidence" className={'h-20 w-full object-cover rounded-lg border mb-4 ' + c.border} />}
+                                {t.image && <img src={(import.meta.env.VITE_MEDIA_URL || '') + t.image} alt="Evidence" className={'h-20 w-full object-cover rounded-lg border mb-4 ' + c.border} />}
                                 <div className={'flex items-center justify-between mt-4 pt-4 border-t ' + c.border}>
                                     <div><span className={'block text-[10px] uppercase ' + c.textMut}>Location</span><span className={c.heading + ' text-sm'}>Unit {t.unit_number}</span></div>
                                     <div className="flex items-center gap-2">

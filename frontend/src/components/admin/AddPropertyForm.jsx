@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
-
+import api from '../../api/axios'
 function AddPropertyForm({ onPropertyAdded }) {
     const [formData, setFormData] = useState({
         name: '',
@@ -20,7 +19,7 @@ function AddPropertyForm({ onPropertyAdded }) {
         e.preventDefault() // Stop page refresh
         try {
             // Send data to Django
-            await axios.post('http://localhost:8000/api/properties/', formData)
+           await api.post('properties/', formData)
             
             // Clear form
             setFormData({ name: '', address: '', city: '', state: 'Dubai' })

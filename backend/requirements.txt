@@ -4,7 +4,10 @@ django-cors-headers
 psycopg2-binary
 Pillow
 djangorestframework-simplejwt
-celery  
+celery
 redis
 groq
 reportlab
+gunicorn
+whitenoise
+dj-database-url

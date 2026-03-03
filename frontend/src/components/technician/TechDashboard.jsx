@@ -209,7 +209,7 @@ const TechDashboard = () => {
                       {ticket.image && (
                         <div>
                           <p className={"text-[10px] uppercase font-bold mb-1 " + c.textMut}>Photo Evidence</p>
-                          <img src={"http://localhost:8000" + ticket.image} alt="Issue"
+                          <img src={(import.meta.env.VITE_MEDIA_URL || "") + ticket.image} alt="Issue"
                             className={"w-full max-h-48 object-cover rounded-xl border " + c.border} />
                         </div>
                       )}

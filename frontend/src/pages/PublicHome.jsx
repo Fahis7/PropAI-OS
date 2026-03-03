@@ -7,7 +7,7 @@ import {
     Shield, Wrench, MessageSquare, ChevronRight, Loader, Users
 } from 'lucide-react';
 
-const API = 'http://localhost:8000/api';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
 
 const PublicHome = () => {
     const { c, isDark } = useTheme();
@@ -103,7 +103,7 @@ const PublicHome = () => {
                             <Link key={p.id} to={'/property/' + p.id}
                                 className={"group rounded-2xl overflow-hidden transition-all border " + c.card + " " + c.border + " " + c.cardHover + " " + c.shadow}>
                                 <div className={(isDark ? "h-48 bg-gradient-to-br from-amber-900/20 to-[#0d1117]" : "h-48 bg-gradient-to-br from-amber-50 to-gray-100") + " flex items-center justify-center overflow-hidden"}>
-                                    {p.image ? <img src={'http://localhost:8000' + p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                                    {p.image ? <img src={(import.meta.env.VITE_MEDIA_URL || '') + p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                                         : <Building size={48} className={c.textMut} />}
                                 </div>
                                 <div className="p-5">
