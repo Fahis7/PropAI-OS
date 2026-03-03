@@ -10,7 +10,5 @@ RUN npm install
 COPY . .
 
 # Expose port 5173
-EXPOSE 5173
-
-# Start the server
-CMD ["sh", "-c", "npm install && npm run dev -- --host"]
+EXPOSE 3000
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
