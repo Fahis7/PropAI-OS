@@ -9,7 +9,8 @@ import {
     Building, Users, Wrench, AlertTriangle, LogOut,
     Home, CheckCircle, Clock, Save,
     ChevronDown, ChevronUp, User, TrendingUp, Shield,
-    MessageSquare, Phone, UserPlus, Copy, Check
+    MessageSquare, Phone, UserPlus, Copy, Check,
+    Plus, X
 } from 'lucide-react';
 
 const ManagerDashboard = () => {
@@ -30,6 +31,9 @@ const ManagerDashboard = () => {
     const [onboardPassword, setOnboardPassword] = useState('tenant123');
     const [selectedUnitId, setSelectedUnitId] = useState('');
     const [copied, setCopied] = useState('');
+    const [showUnitModal, setShowUnitModal] = useState(false);
+    const [unitForm, setUnitForm] = useState({ unit_number: '', unit_type: 'STUDIO', yearly_rent: '', bedrooms: 1, bathrooms: 1, square_feet: '' });
+    const [savingUnit, setSavingUnit] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -57,6 +61,29 @@ const ManagerDashboard = () => {
         try { await api.patch('properties/' + data.property.id + '/rules/', { rules_and_regulations: rules }); setRulesSaved(true); }
         catch { alert("Failed to save rules"); }
         finally { setSavingRules(false); }
+    };
+
+    const handleAddUnit = async (e) => {
+        e.preventDefault();
+        setSavingUnit(true);
+        try {
+            await api.post('units/', {
+                property: data.property.id,
+                unit_number: unitForm.unit_number,
+                unit_type: unitForm.unit_type,
+                yearly_rent: unitForm.yearly_rent,
+                bedrooms: unitForm.bedrooms,
+                bathrooms: unitForm.bathrooms,
+                square_feet: unitForm.square_feet || null,
+                status: 'VACANT',
+            });
+            setShowUnitModal(false);
+            setUnitForm({ unit_number: '', unit_type: 'STUDIO', yearly_rent: '', bedrooms: 1, bathrooms: 1, square_feet: '' });
+            fetchData();
+        } catch (err) {
+            console.error("Failed to add unit:", err);
+            alert(err?.response?.data?.detail || "Failed to add unit. Please try again.");
+        } finally { setSavingUnit(false); }
     };
 
     const handleOnboard = async () => {
@@ -340,7 +367,13 @@ const ManagerDashboard = () => {
                 {/* ══════ UNITS TAB ══════ */}
                 {tab === 'units' && (
                     <div>
-                        <h3 className={"text-lg font-bold mb-3 " + c.heading}>{"Units — " + property.name}</h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={"text-lg font-bold " + c.heading}>{"Units — " + property.name}</h3>
+                            <button onClick={() => setShowUnitModal(true)}
+                                className={c.btn + " flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition"}>
+                                <Plus size={16} /> Add Unit
+                            </button>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {units.map(u => (
                                 <div key={u.id} className={"rounded-xl border p-4 " + (
@@ -354,9 +387,84 @@ const ManagerDashboard = () => {
                                     </div>
                                     <p className={"text-xs " + c.textSec}>{u.unit_type}</p>
                                     <p className={"text-sm font-bold mt-1 " + c.accent}>{"AED " + u.yearly_rent.toLocaleString() + "/yr"}</p>
+                                    {u.bedrooms && <p className={"text-xs mt-1 " + c.textMut}>{u.bedrooms} BR • {u.bathrooms} BA{u.square_feet ? " • " + u.square_feet + " sqft" : ""}</p>}
                                 </div>
                             ))}
                         </div>
+
+                        {showUnitModal && (
+                            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                                <div className={c.card + " rounded-2xl w-full max-w-md p-6 relative border " + c.border + " " + c.shadow}>
+                                    <button onClick={() => setShowUnitModal(false)} className={"absolute top-4 right-4 " + c.textMut + " hover:opacity-70"}>
+                                        <X size={22} />
+                                    </button>
+                                    <h3 className={"text-xl font-bold mb-1 " + c.heading}>Add New Unit</h3>
+                                    <p className={"text-sm mb-5 " + c.textMut}>{property.name}</p>
+
+                                    <form onSubmit={handleAddUnit} className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className={"block text-xs font-bold mb-1 " + c.textSec}>Unit Number *</label>
+                                                <input type="text" required placeholder="e.g. 101"
+                                                    className={"w-full p-2.5 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500/50 " + c.input + " " + c.text}
+                                                    value={unitForm.unit_number} onChange={e => setUnitForm({...unitForm, unit_number: e.target.value})} />
+                                            </div>
+                                            <div>
+                                                <label className={"block text-xs font-bold mb-1 " + c.textSec}>Unit Type *</label>
+                                                <select className={"w-full p-2.5 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500/50 " + c.input + " " + c.text}
+                                                    value={unitForm.unit_type} onChange={e => setUnitForm({...unitForm, unit_type: e.target.value})}>
+                                                    <option value="STUDIO">Studio</option>
+                                                    <option value="1BHK">1 Bedroom</option>
+                                                    <option value="2BHK">2 Bedroom</option>
+                                                    <option value="3BHK">3 Bedroom</option>
+                                                    <option value="VILLA">Villa</option>
+                                                    <option value="OFFICE">Office Space</option>
+                                                    <option value="RETAIL">Retail Shop</option>
+                                                    <option value="WAREHOUSE">Warehouse</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className={"block text-xs font-bold mb-1 " + c.textSec}>Yearly Rent (AED) *</label>
+                                            <input type="number" required placeholder="e.g. 45000"
+                                                className={"w-full p-2.5 rounded-lg border outline-none focus:ring-2 focus:ring-amber-500/50 " + c.input + " " + c.text}
+                                                value={unitForm.yearly_rent} onChange={e => setUnitForm({...unitForm, yearly_rent: e.target.value})} />
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <label className={"block text-xs font-bold mb-1 " + c.textSec}>Bedrooms</label>
+                                                <input type="number" min="0"
+                                                    className={"w-full p-2.5 rounded-lg border outline-none " + c.input + " " + c.text}
+                                                    value={unitForm.bedrooms} onChange={e => setUnitForm({...unitForm, bedrooms: parseInt(e.target.value) || 0})} />
+                                            </div>
+                                            <div>
+                                                <label className={"block text-xs font-bold mb-1 " + c.textSec}>Bathrooms</label>
+                                                <input type="number" min="0" step="0.5"
+                                                    className={"w-full p-2.5 rounded-lg border outline-none " + c.input + " " + c.text}
+                                                    value={unitForm.bathrooms} onChange={e => setUnitForm({...unitForm, bathrooms: parseFloat(e.target.value) || 0})} />
+                                            </div>
+                                            <div>
+                                                <label className={"block text-xs font-bold mb-1 " + c.textSec}>Sq Ft</label>
+                                                <input type="number" placeholder="Optional"
+                                                    className={"w-full p-2.5 rounded-lg border outline-none " + c.input + " " + c.text}
+                                                    value={unitForm.square_feet} onChange={e => setUnitForm({...unitForm, square_feet: e.target.value})} />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-3 pt-2">
+                                            <button type="button" onClick={() => setShowUnitModal(false)}
+                                                className={"flex-1 py-2.5 rounded-xl font-bold text-sm transition border " + c.btn2}>Cancel</button>
+                                            <button type="submit" disabled={savingUnit}
+                                                className={c.btn + " flex-1 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2"}>
+                                                {savingUnit ? "Adding..." : <><Plus size={16} /> Add Unit</>}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

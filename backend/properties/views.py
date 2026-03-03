@@ -48,10 +48,18 @@ class UnitViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         property_instance = serializer.validated_data.get('property')
-        user_org = self.request.user.organization
-        if property_instance.organization != user_org:
-            raise ValidationError({"detail": "You cannot add units to a property you do not own."})
-        serializer.save()
+        user = self.request.user
+        user_org = getattr(user, 'organization', None)
+        if user.is_superuser:
+            serializer.save()
+            return
+        if user_org and property_instance.organization == user_org:
+            serializer.save()
+            return
+        if hasattr(user, 'managed_property') and user.managed_property == property_instance:
+            serializer.save()
+            return
+        raise ValidationError({"detail": "You cannot add units to a property you don't manage."})
 
 
 @api_view(['GET'])

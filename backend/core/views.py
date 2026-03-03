@@ -306,6 +306,9 @@ def manager_stats(request):
             "unit_type": u.get_unit_type_display(),
             "status": u.status,
             "yearly_rent": float(u.yearly_rent),
+            "bedrooms": u.bedrooms,
+            "bathrooms": float(u.bathrooms),
+            "square_feet": u.square_feet,
         }
         for u in units
     ]
